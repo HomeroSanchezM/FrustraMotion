@@ -9,7 +9,6 @@ import os
 from Bio.Align import PairwiseAligner
 from Bio.Seq import Seq
 
-#file_directory = "../data/FRUSTRATION_TMENC/FRUSTRATION_ANALYSIS_TMENC_CAPSIDS/MONOMER_CHAINA/TmEnc_monomer_0.pdb"
 
 '''
 Usage:
@@ -20,9 +19,9 @@ Get the seqeunce for two PBD and compare it : python3 parser_pdb.py chemin/vers/
 #fonction thar take return the residues sequence on a given PDB
 def return_sequence_3_letter_format (file_directory) :
     """Extract residue sequence from PDB file in 3-letter code format"""
-    # Suppression des warnings non critiques
+    # Ignore non essential warnings
     warnings.simplefilter('ignore', BiopythonWarning)
-    list = []
+    residues = []
 
     try:
         # Création d'un objet PDBParser
@@ -31,12 +30,12 @@ def return_sequence_3_letter_format (file_directory) :
         structure = parser.get_structure("struct", file_directory)
         # iterate over all residues in a structure
         for residue in structure.get_residues():
-            list.append(residue.get_resname())
+            residues.append(residue.get_resname())
     except Exception as e:
         print(f"Error parsing PDB file: {e}", file=sys.stderr)
         sys.exit(1)
 
-    return list
+    return residues
 
 #fonction that converte a list of 3 letter code AminoAcids to a string on 1 letter code AminoAcids
 def three_to_one (list_of_tree):
@@ -77,17 +76,25 @@ def main():
 
     elif len(sys.argv) ==2:
         pdb_file = sys.argv[1]
+
         if not os.path.isfile(pdb_file):
             print(f"Error: File not found - {pdb_file}", file=sys.stderr)
             sys.exit(1)
         else :
-            three_letter_seq = return_sequence_3_letter_format(pdb_file)
-            one_letter_seq = three_to_one(three_letter_seq)
-            print("\nResults:")
-            print(f"Input PDB file: {pdb_file}")
-            print(f"Residue count: {len(three_letter_seq)}")
-            #print(f"3-letter sequence: {' '.join(three_letter_seq)}")
-            print(f"1-letter sequence: {one_letter_seq}")
+            option = input("Choose between the next options: \n1 : display the sequence on the given PDB \n2 : make a structural alignment of the monomeres of the given PDB \n")
+            if option == "1":
+                three_letter_seq = return_sequence_3_letter_format(pdb_file)
+                one_letter_seq = three_to_one(three_letter_seq)
+                print("\nResults:")
+                print(f"Input PDB file: {pdb_file}")
+                print(f"Residue count: {len(three_letter_seq)}")
+                #print(f"3-letter sequence: {' '.join(three_letter_seq)}")
+                print(f"1-letter sequence: {one_letter_seq}")
+            elif option == "2":
+                print('Work in process')
+            else :
+                print("Error: Invalid option, have to write 1 or 2 ", file=sys.stderr)
+                sys.exit(1)
 
     elif len(sys.argv) ==3:
         pdb_file1 = sys.argv[1]
