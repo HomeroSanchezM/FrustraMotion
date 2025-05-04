@@ -58,7 +58,7 @@ def coord_of_atom (aligned_monomers) :
     #                            [x60,y60,z60]]
     dico_of_atoms = {}
 
-    for k in range (len(list(aligned_monomers))) :
+    for k in range (len(list(list(aligned_monomers)[0]))) : #for obtain the number of residues = 264 for TmEnc
         #print(f"on a k = {k}")
         for monomer in aligned_monomers :
             #print(f"on a monomer = {monomer}")
@@ -187,22 +187,48 @@ def main(pdb_file):
     residues = list(dico_of_residue_RMSF.keys())
     rmsf_values = list(dico_of_residue_RMSF.values())
 
-    # Tracer le graphique
-    plt.figure(figsize=(10, 5))
-    plt.plot(residues, rmsf_values, marker='o', linestyle='-', color='blue', label='RMSF')
-    plt.axhline(y=0, color='black', linestyle='--', linewidth=1)
+    #make the plot
+    plt.figure(figsize=(15, 6))  # Larger figure size for better readability
 
-    # Ajouter titres et légendes
-    plt.xlabel('Residues')
-    plt.ylabel('RMSF')
-    plt.title('RMSF for monomers residues')
-    plt.xticks(rotation=45)
-    plt.grid(True)
-    plt.legend()
+    # Create the plot
+    plt.plot(residues, rmsf_values,
+             marker='o', markersize=3,
+             linestyle='-', linewidth=1,
+             color='blue', alpha=0.7,
+             label='RMSF')
+
+    # Add reference line
+    plt.axhline(y=0, color='black', linestyle='--', linewidth=0.5)
+
+    # Customize x-axis labels
+    plt.xticks(
+        residues[::3],  # Show every 3th residue
+        rotation=45,
+        fontsize=8,  # Smaller font size
+        ha='right'  # Better alignment when rotated
+    )
+
+    # Add labels and title with improved formatting
+    plt.xlabel('Residue Number', fontsize=10)
+    plt.ylabel('RMSF (Å)', fontsize=10)
+    plt.title('Residue Flexibility Analysis (RMSF) - TmEnc Capsid', fontsize=12, pad=20)
+
+    # Add grid and legend
+    plt.grid(True, alpha=0.3)
+    plt.legend(fontsize=9)
+
+    # Adjust layout to prevent label cutoff
     plt.tight_layout()
+
+    # Save high-quality image
     name_plot = "rmsf_per_res_TmEnc_capsids_1000.png"
-    plt.savefig(f"../plots/{name_plot}", dpi=300)
-    print(f"plot {name_plot} created in folder plot/")
+    plt.savefig(f"../plots/{name_plot}",
+                dpi=300,
+                bbox_inches='tight',
+                facecolor='white')
+    plt.close()  # Close the figure to free memory
+
+    print(f"Plot {name_plot} created in plots/ folder")
 
 
 
