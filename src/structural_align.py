@@ -62,7 +62,7 @@ def coord_of_atom (aligned_monomers) :
         #print(f"on a k = {k}")
         for monomer in aligned_monomers :
             #print(f"on a monomer = {monomer}")
-            name_res = list(monomer)[k].get_resname() + str(k+1)
+            name_res = list(monomer)[k].get_resname() +" "+  str(k+1)
             #print(f"on a name_res = {name_res}")
             if name_res in dico_of_atoms :
                 #print(f"name_res = {name_res} est dans dico_of_atoms")
@@ -200,7 +200,9 @@ def main(pdb_file):
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
-    plt.savefig("../plots/rmsf_plot.png", dpi=300)
+    name_plot = "rmsf_per_res_TmEnc_capsids_1000.png"
+    plt.savefig(f"../plots/{name_plot}", dpi=300)
+    print(f"plot {name_plot} created in folder plot/")
 
 
 

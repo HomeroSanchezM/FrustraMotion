@@ -16,7 +16,7 @@ get the sequence of one PDB :python3 parser_pdb.py chemin/vers/fichier.pdb
 Get the seqeunce for two PBD and compare it : python3 parser_pdb.py chemin/vers/1erfichier.pdb parser_pdb.py chemin/vers/2emefichier.pdb
 '''
 
-#fonction thar take return the residues sequence on a given PDB
+#fonction thar take a PDB file directory and return the residues sequence on a given PDB
 def return_sequence_3_letter_format (file_directory) :
     """Extract residue sequence from PDB file in 3-letter code format"""
     # Ignore non essential warnings
@@ -37,7 +37,7 @@ def return_sequence_3_letter_format (file_directory) :
 
     return residues
 
-#fonction that converte a list of 3 letter code AminoAcids to a string on 1 letter code AminoAcids
+#fonction that convert a list of 3 letter code AminoAcids to a string on 1 letter code AminoAcids
 def three_to_one (list_of_tree):
     """Convert 3-letter AA codes to 1-letter format"""
     dic = {'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C', 'GLN': 'Q', 'GLU': 'E', 'GLY': 'G', 'HIS': 'H','HSD': 'H','HSE': 'H',
@@ -63,11 +63,11 @@ def align_seqs(SEQ1 , SEQ2):
     seq2 = Seq(SEQ2)
     # Init align
     ALIGN = PairwiseAligner()
-    alignments = ALIGN.align(seq1, seq2)
+    alignments = ALIGN.align(seq1, seq2) #by defaut is a global alignement
 
     # give the best align
     best_alignment = alignments[0]
-    return best_alignment
+    return best_alignment.score , best_alignment
 
 def main():
     if len(sys.argv) != 2 and len(sys.argv) != 3 :
@@ -81,7 +81,7 @@ def main():
             print(f"Error: File not found - {pdb_file}", file=sys.stderr)
             sys.exit(1)
         else :
-            option = input("Choose between the next options: \n1 : display the sequence on the given PDB \n2 : make a structural alignment of the monomeres of the given PDB \n")
+            option = input("Choose between the next options: \n1 : display the sequence on the given PDB \n2 : make a structural alignment of the monomers of the given PDB \n3 : align with a custom sequence \n")
             if option == "1":
                 three_letter_seq = return_sequence_3_letter_format(pdb_file)
                 one_letter_seq = three_to_one(three_letter_seq)
@@ -91,7 +91,22 @@ def main():
                 #print(f"3-letter sequence: {' '.join(three_letter_seq)}")
                 print(f"1-letter sequence: {one_letter_seq}")
             elif option == "2":
-                print('Work in process')
+                print('structural_align.py')
+            elif option == "3":
+                pdb_file1 = sys.argv[1]
+                if not os.path.isfile(pdb_file1):
+                    print(f"Error: File not found - {pdb_file1}", file=sys.stderr)
+                    sys.exit(1)
+                else:
+                    three_letter_seq1 = return_sequence_3_letter_format(pdb_file1)
+                    one_letter_seq1 = three_to_one(three_letter_seq1)
+                    custom_seq = input('input the custom sequence :\n')
+                    score, alignment = align_seqs(one_letter_seq1, custom_seq)
+                    print("\nResults:")
+                    print(f"Input PDB files: \n {pdb_file1} and a custom sequence")
+                    print(f"Residue count: \n {len(three_letter_seq1)} \n {len(custom_seq)}")
+                    print(f"Score: {score}")
+                    print(f"alignment : \n{alignment}")
             else :
                 print("Error: Invalid option, have to write 1 or 2 ", file=sys.stderr)
                 sys.exit(1)
@@ -110,10 +125,11 @@ def main():
             one_letter_seq1 = three_to_one(three_letter_seq1)
             three_letter_seq2 = return_sequence_3_letter_format(pdb_file2)
             one_letter_seq2 = three_to_one(three_letter_seq2)
-            alignment = align_seqs(one_letter_seq1, one_letter_seq2)
+            score, alignment = align_seqs(one_letter_seq1, one_letter_seq2)
             print("\nResults:")
             print(f"Input PDB files: \n {pdb_file1} \n {pdb_file2}")
             print(f"Residue count: \n {len(three_letter_seq1)} \n {len(three_letter_seq2)}")
+            print(f"Score: {score}")
             print(f"alignment : \n{alignment}")
 
 
