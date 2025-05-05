@@ -143,6 +143,7 @@ def RMSF_std_of_Residue(dico_of_atom_RMSF_std):
             'std': total_std / count
         }
     return dico_of_residue_RMSF_std
+
 #5.
 def calculate_atom_RMSF(list_of_coord):
     """Take a list of 3D coordinates and calculate the corresponding RMSF."""
@@ -158,38 +159,6 @@ def calculate_atom_RMSF(list_of_coord):
      # RMSF
     rmsf = np.sqrt(mean_squared_disp)
     return rmsf
-#5.1
-def RMSF_of_atom (dico_of_atoms) :
-    """return a dico with the RMSF for all the atoms of each residue"""
-    # RMSF_of_atom = {MET: {CA:3.21,... },...}
-
-    dico_of_atom_RMSF = {}
-    for residue in dico_of_atoms :
-        if residue in dico_of_atom_RMSF :
-            for atom in dico_of_atoms[residue]:
-                dico_of_atom_RMSF[residue][atom] = calculate_atom_RMSF(dico_of_atoms[residue][atom])
-        else:
-            dico_of_atom_RMSF[residue]= {}
-            for atom in dico_of_atoms[residue]:
-                dico_of_atom_RMSF[residue][atom] = calculate_atom_RMSF(dico_of_atoms[residue][atom])
-
-    return dico_of_atom_RMSF
-#5.2
-def calculate_residue_RMSF(dico_of_atoms_RMSF) :
-    residue_RMSF = 0
-    for atom in dico_of_atoms_RMSF :
-        residue_RMSF += dico_of_atoms_RMSF[atom]
-    residue_RMSF = residue_RMSF / len(dico_of_atoms_RMSF)
-    return residue_RMSF
-#5.3
-def RMSF_of_Residue (dico_of_atom_RMSF) :
-    """return a dico with the RMSF for all the residues"""
-    # RMSF_of_atom = {MET: 3.14 ,...}
-    dico_of_residue_RMSF = {}
-    for residue in dico_of_atom_RMSF:
-            dico_of_residue_RMSF[residue] = calculate_residue_RMSF(dico_of_atom_RMSF[residue])
-
-    return dico_of_residue_RMSF
 
 
 def main(pdb_file):
@@ -227,22 +196,8 @@ def main(pdb_file):
     #print(dico_res_RMSF_STD)
     print("residues RMSF and std calculated")
 
-    # 5 create dico of RMSF of each atom
-    dico_of_atom_RMSF= RMSF_of_atom(dico_of_coords)
-    print("atoms RMSF calculated")
-
-    # test of the funtion calculate_residue_RMSF
-    #test_dico = {'atom1' : 3.21 , 'atom2' : 3.58, 'atom3' : 7.21}
-    #test_res =calculate_residue_RMSF(test_dico)
-    #print(test_res)
-
-    # 5.3. create dico of RMSF of each residue
-    dico_of_residue_RMSF = RMSF_of_Residue(dico_of_atom_RMSF)
-    #print(dico_of_residue_RMSF)
-    print("residue RMSF calculated")
-
     #6 grafical view
-    residues = list(dico_of_residue_RMSF.keys())
+    residues = list(dico_res_RMSF_STD.keys())
     rmsf_values = []
     std_values = []
     for res in dico_res_RMSF_STD :
@@ -266,63 +221,15 @@ def main(pdb_file):
     plt.ylabel('RMSF (Å)', fontsize=10)
     plt.title('Residue Flexibility Analysis with Standard Deviation', fontsize=12, pad=20)
     plt.grid(True, alpha=0.3)
-    plt.legend(fontsize=9)
+    #plt.legend(fontsize=9)
+    plt.legend([f'RMSF (#res={len(residues)} , #monomeres={len(monomers)} )'], fontsize=9)
     plt.tight_layout()
 
-    name_plot = "rmsf_with_std_TmEnc_capsids_1000.png"
+    name_plot = "rmsf_with_std_TmEnc_capsids_0.png"
     plt.savefig(f"../plots/{name_plot}", dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
 
     print(f"Plot with standard deviation saved as {name_plot}")
-'''
-    # 6. grafical view
-    # Extract data
-    residues = list(dico_of_residue_RMSF.keys())
-    rmsf_values = list(dico_of_residue_RMSF.values())
-
-    #make the plot
-    plt.figure(figsize=(15, 6))  # Larger figure size for better readability
-
-    # Create the plot
-    plt.plot(residues, rmsf_values,
-             marker='o', markersize=3,
-             linestyle='-', linewidth=1,
-             color='blue', alpha=0.7,
-             label='RMSF')
-
-    # Add reference line
-    plt.axhline(y=0, color='black', linestyle='--', linewidth=0.5)
-
-    # Customize x-axis labels
-    plt.xticks(
-        residues[::3],  # Show every 3th residue
-        rotation=45,
-        fontsize=8,  # Smaller font size
-        ha='right'  # Better alignment when rotated
-    )
-
-    # Add labels and title with improved formatting
-    plt.xlabel('Residue Number', fontsize=10)
-    plt.ylabel('RMSF (Å)', fontsize=10)
-    plt.title('Residue Flexibility Analysis (RMSF) - TmEnc Capsid', fontsize=12, pad=20)
-
-    # Add grid and legend
-    plt.grid(True, alpha=0.3)
-    plt.legend(fontsize=9)
-
-    # Adjust layout to prevent label cutoff
-    plt.tight_layout()
-
-    # Save high-quality image
-    name_plot = "rmsf_per_res_TmEnc_capsids_0.png"
-    plt.savefig(f"../plots/{name_plot}",
-                dpi=300,
-                bbox_inches='tight',
-                facecolor='white')
-    plt.close()  # Close the figure to free memory
-
-    print(f"Plot {name_plot} created in plots/ folder")
-'''
 
 
 
