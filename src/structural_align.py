@@ -5,11 +5,15 @@ from Bio import BiopythonWarning
 import sys
 import os
 import matplotlib.pyplot as plt
+from Bio.PDB import PDBIO
+from Bio.PDB import Model, Structure
+import itertools
+
 
 # delete non essential warning
 warnings.simplefilter('ignore', BiopythonWarning)
 
-
+#1
 def load_monomers(pdb_file):
     """Load the n monomers, corresponding to the chains"""
     parser = PDBParser(QUIET=True)
@@ -19,8 +23,10 @@ def load_monomers(pdb_file):
     for model in structure :
         for chain in model:
             chains.append(chain)
+            #print(list(list(chain)[0])[0].get_serial_number())
     return chains
 
+#2.
 def structural_alignment(monomers):
     """Align all the monomers to the first one"""
     super_imposer = Superimposer()
@@ -50,6 +56,7 @@ def structural_alignment(monomers):
 
     return aligned
 
+#3.
 def coord_of_atom (aligned_monomers) :
     """return a dico with the list of cords for all the atoms of each residue"""
     # dico_of_atoms = {MET: {CA:[[x1,y1,z1],    , ... },...}
@@ -99,7 +106,44 @@ def coord_of_atom (aligned_monomers) :
     #print(dico_of_atoms['MET1'])
     return  dico_of_atoms
 
-
+#4. Calculate standard deviation for atom positions
+def calculate_atom_std(list_of_coord):
+    """Take a list of 3D coordinates and calculate standard deviation for atom positions"""
+    mean_pos = np.mean(list_of_coord, axis=0)
+    displacements = list_of_coord - mean_pos
+    distances = np.sqrt(np.sum(displacements**2, axis=1))
+    return np.std(distances)
+#4.1 Calculate RMSF and standard deviation for atom positions
+def RMSF_std_of_atom(dico_of_atoms):
+    """Calculate RMSF and standard deviation for all atoms"""
+    dico_of_atom_stats = {}
+    for residue in dico_of_atoms:
+        dico_of_atom_stats[residue] = {}
+        for atom in dico_of_atoms[residue]:
+            coords = dico_of_atoms[residue][atom]
+            dico_of_atom_stats[residue][atom] = {
+                'rmsf': calculate_atom_RMSF(coords),
+                'std': calculate_atom_std(coords)
+            }
+    return dico_of_atom_stats
+#4.2
+def RMSF_std_of_Residue(dico_of_atom_RMSF_std):
+    """Calculate average RMSF and std per residue"""
+    dico_of_residue_RMSF_std = {}
+    for residue in dico_of_atom_RMSF_std:
+        total_rmsf = 0
+        total_std = 0
+        count = 0
+        for atom in dico_of_atom_RMSF_std[residue]:
+            total_rmsf += dico_of_atom_RMSF_std[residue][atom]['rmsf']
+            total_std += dico_of_atom_RMSF_std[residue][atom]['std']
+            count += 1
+        dico_of_residue_RMSF_std[residue] = {
+            'rmsf': total_rmsf / count,
+            'std': total_std / count
+        }
+    return dico_of_residue_RMSF_std
+#5.
 def calculate_atom_RMSF(list_of_coord):
     """Take a list of 3D coordinates and calculate the corresponding RMSF."""
     # Calcul de la position moyenne
@@ -114,7 +158,7 @@ def calculate_atom_RMSF(list_of_coord):
      # RMSF
     rmsf = np.sqrt(mean_squared_disp)
     return rmsf
-
+#5.1
 def RMSF_of_atom (dico_of_atoms) :
     """return a dico with the RMSF for all the atoms of each residue"""
     # RMSF_of_atom = {MET: {CA:3.21,... },...}
@@ -130,14 +174,14 @@ def RMSF_of_atom (dico_of_atoms) :
                 dico_of_atom_RMSF[residue][atom] = calculate_atom_RMSF(dico_of_atoms[residue][atom])
 
     return dico_of_atom_RMSF
-
+#5.2
 def calculate_residue_RMSF(dico_of_atoms_RMSF) :
     residue_RMSF = 0
     for atom in dico_of_atoms_RMSF :
         residue_RMSF += dico_of_atoms_RMSF[atom]
     residue_RMSF = residue_RMSF / len(dico_of_atoms_RMSF)
     return residue_RMSF
-
+#5.3
 def RMSF_of_Residue (dico_of_atom_RMSF) :
     """return a dico with the RMSF for all the residues"""
     # RMSF_of_atom = {MET: 3.14 ,...}
@@ -163,12 +207,27 @@ def main(pdb_file):
     print("Structural alignment completed")
     # print(aligned)
 
+
+
     # 3. create dico of coord of each atom
     dico_of_coords = coord_of_atom(aligned)
     print("coordinates parsed")
 
+    #4. test of the funtion calculate_atom_std
+    #test_list = [[5, 6, 2], [4, 2, 1], [7, 2, 3], [4, 1, 5]]
+    #test_res =calculate_atom_std(test_list)
+    #print(test_res)
 
-    # 4. create dico of RMSF of each atom
+    #4.1
+    dico_atom_RMSF_STD = RMSF_std_of_atom(dico_of_coords)
+    print("atoms RMSF and std calculated")
+
+    #4.2
+    dico_res_RMSF_STD = RMSF_std_of_Residue(dico_atom_RMSF_STD)
+    #print(dico_res_RMSF_STD)
+    print("residues RMSF and std calculated")
+
+    # 5 create dico of RMSF of each atom
     dico_of_atom_RMSF= RMSF_of_atom(dico_of_coords)
     print("atoms RMSF calculated")
 
@@ -177,12 +236,46 @@ def main(pdb_file):
     #test_res =calculate_residue_RMSF(test_dico)
     #print(test_res)
 
-    # 4. create dico of RMSF of each residue
+    # 5.3. create dico of RMSF of each residue
     dico_of_residue_RMSF = RMSF_of_Residue(dico_of_atom_RMSF)
     #print(dico_of_residue_RMSF)
     print("residue RMSF calculated")
 
-    # 5. grafical view
+    #6 grafical view
+    residues = list(dico_of_residue_RMSF.keys())
+    rmsf_values = []
+    std_values = []
+    for res in dico_res_RMSF_STD :
+        rmsf_values.append(dico_res_RMSF_STD[res]['rmsf'] )
+        std_values.append(dico_res_RMSF_STD[res]['std'])
+
+    plt.figure(figsize=(15, 6))
+
+    # Plot with error bars
+    plt.errorbar(range(len(residues)), rmsf_values, yerr=std_values,
+                 fmt='-o', markersize=3, linewidth=1,
+                 color='blue', alpha=0.7,
+                 ecolor='red', elinewidth=0.5, capsize=2,
+                 label='RMSF ± std')
+
+    # Customize x-axis
+    plt.xticks(range(len(residues))[::3], residues[::3],
+               rotation=45, fontsize=8, ha='right')
+
+    plt.xlabel('Residue Number', fontsize=10)
+    plt.ylabel('RMSF (Å)', fontsize=10)
+    plt.title('Residue Flexibility Analysis with Standard Deviation', fontsize=12, pad=20)
+    plt.grid(True, alpha=0.3)
+    plt.legend(fontsize=9)
+    plt.tight_layout()
+
+    name_plot = "rmsf_with_std_TmEnc_capsids_1000.png"
+    plt.savefig(f"../plots/{name_plot}", dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+
+    print(f"Plot with standard deviation saved as {name_plot}")
+'''
+    # 6. grafical view
     # Extract data
     residues = list(dico_of_residue_RMSF.keys())
     rmsf_values = list(dico_of_residue_RMSF.values())
@@ -221,7 +314,7 @@ def main(pdb_file):
     plt.tight_layout()
 
     # Save high-quality image
-    name_plot = "rmsf_per_res_TmEnc_capsids_1000.png"
+    name_plot = "rmsf_per_res_TmEnc_capsids_0.png"
     plt.savefig(f"../plots/{name_plot}",
                 dpi=300,
                 bbox_inches='tight',
@@ -229,7 +322,7 @@ def main(pdb_file):
     plt.close()  # Close the figure to free memory
 
     print(f"Plot {name_plot} created in plots/ folder")
-
+'''
 
 
 
