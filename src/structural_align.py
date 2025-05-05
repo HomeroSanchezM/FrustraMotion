@@ -3,11 +3,10 @@ import numpy as np
 import warnings
 from Bio import BiopythonWarning
 import sys
-import os
 import matplotlib.pyplot as plt
-from Bio.PDB import PDBIO
-from Bio.PDB import Model, Structure
-import itertools
+from Bio.PDB import PDBIO, Structure, Model, Chain
+import os
+
 
 
 # delete non essential warning
@@ -55,6 +54,54 @@ def structural_alignment(monomers):
         aligned.append(monomer)
 
     return aligned
+#test 2.1
+
+
+def save_each_monomer_as_pdb(aligned_monomers, output_dir="aligned_monomers"):
+    """
+    Enregistre chaque monomère dans un fichier PDB séparé
+
+    Args:
+        aligned_monomers: Liste d'objets Chain (monomères alignés)
+        output_dir: Répertoire de sortie (sera créé si inexistant)
+    """
+    # Créer le répertoire de sortie
+    os.makedirs(output_dir, exist_ok=True)
+
+    for i, monomer in enumerate(aligned_monomers, start=1):
+        # Créer une structure minimale pour ce monomère
+        structure = Structure.Structure(f"MONOMER_{i}")
+        model = Model.Model(0)
+        structure.add(model)
+
+        # Créer une nouvelle chaîne (ID 'A' par défaut)
+        new_chain = Chain.Chain("A")
+
+        # Copier tous les résidus du monomère
+        for residue in monomer:
+            new_chain.add(residue)
+
+        model.add(new_chain)
+
+        # Renumérotation propre des atomes
+        atom_number = 1
+        for atom in structure.get_atoms():
+            atom.serial_number = atom_number
+            atom_number += 1
+
+        # Nom du fichier de sortie
+        output_file = os.path.join(output_dir, f"TmEnc0_monomer{i}.pdb")
+
+        # Sauvegarde
+        io = PDBIO()
+        io.set_structure(structure)
+        io.save(output_file)
+
+        print(f"Monomère {i} sauvegardé dans {output_file}")
+
+
+
+
 
 #3.
 def coord_of_atom (aligned_monomers) :
@@ -106,14 +153,31 @@ def coord_of_atom (aligned_monomers) :
     #print(dico_of_atoms['MET1'])
     return  dico_of_atoms
 
-#4. Calculate standard deviation for atom positions
+#4.1. Calculate standard deviation for atom positions
 def calculate_atom_std(list_of_coord):
     """Take a list of 3D coordinates and calculate standard deviation for atom positions"""
     mean_pos = np.mean(list_of_coord, axis=0)
     displacements = list_of_coord - mean_pos
     distances = np.sqrt(np.sum(displacements**2, axis=1))
     return np.std(distances)
-#4.1 Calculate RMSF and standard deviation for atom positions
+
+#4.2.
+def calculate_atom_RMSF(list_of_coord):
+    """Take a list of 3D coordinates and calculate the corresponding RMSF."""
+    # Calcul de la position moyenne
+    mean_pos = np.mean(list_of_coord, axis=0)
+    #print(mean_pos)
+    # Fluctuations (vecteurs de déplacement)
+    displacements = list_of_coord - mean_pos
+    # Norme au carré de chaque vecteur
+    squared_displacements = np.sum(displacements ** 2, axis=1)
+    # Moyenne des normes au carré
+    mean_squared_disp = np.mean(squared_displacements)
+     # RMSF
+    rmsf = np.sqrt(mean_squared_disp)
+    return rmsf
+
+#5.1 Calculate RMSF and standard deviation for atom positions
 def RMSF_std_of_atom(dico_of_atoms):
     """Calculate RMSF and standard deviation for all atoms"""
     dico_of_atom_stats = {}
@@ -126,7 +190,7 @@ def RMSF_std_of_atom(dico_of_atoms):
                 'std': calculate_atom_std(coords)
             }
     return dico_of_atom_stats
-#4.2
+#5.2
 def RMSF_std_of_Residue(dico_of_atom_RMSF_std):
     """Calculate average RMSF and std per residue"""
     dico_of_residue_RMSF_std = {}
@@ -144,22 +208,6 @@ def RMSF_std_of_Residue(dico_of_atom_RMSF_std):
         }
     return dico_of_residue_RMSF_std
 
-#5.
-def calculate_atom_RMSF(list_of_coord):
-    """Take a list of 3D coordinates and calculate the corresponding RMSF."""
-    # Calcul de la position moyenne
-    mean_pos = np.mean(list_of_coord, axis=0)
-    #print(mean_pos)
-    # Fluctuations (vecteurs de déplacement)
-    displacements = list_of_coord - mean_pos
-    # Norme au carré de chaque vecteur
-    squared_displacements = np.sum(displacements ** 2, axis=1)
-    # Moyenne des normes au carré
-    mean_squared_disp = np.mean(squared_displacements)
-     # RMSF
-    rmsf = np.sqrt(mean_squared_disp)
-    return rmsf
-
 
 def main(pdb_file):
     # 1. Charger les monomères
@@ -176,22 +224,24 @@ def main(pdb_file):
     print("Structural alignment completed")
     # print(aligned)
 
-
+    #test 2.1
+    # Exemple d'utilisation
+    save_each_monomer_as_pdb(aligned, "../results/FRUSTRATION_TMENC/TMENC_CAPSIDS/TmEnc0_aligned_monomers/")
 
     # 3. create dico of coord of each atom
     dico_of_coords = coord_of_atom(aligned)
     print("coordinates parsed")
 
-    #4. test of the funtion calculate_atom_std
+    # test of the funtion calculate_atom_std
     #test_list = [[5, 6, 2], [4, 2, 1], [7, 2, 3], [4, 1, 5]]
     #test_res =calculate_atom_std(test_list)
     #print(test_res)
 
-    #4.1
+    #5.1
     dico_atom_RMSF_STD = RMSF_std_of_atom(dico_of_coords)
     print("atoms RMSF and std calculated")
 
-    #4.2
+    #5.2
     dico_res_RMSF_STD = RMSF_std_of_Residue(dico_atom_RMSF_STD)
     #print(dico_res_RMSF_STD)
     print("residues RMSF and std calculated")
