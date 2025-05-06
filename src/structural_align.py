@@ -8,6 +8,27 @@ from Bio.PDB import PDBIO, Structure, Model, Chain
 import os
 
 
+'''
+TO DO : 
+take the <(t)> number of the file name for adding to the name of the plot automaticly
+to do it have to change :
+l 111 : f"<MtEnc|TmEnc><0|...|1000|...>_monomer{i}.pdb"
+l 243 : "../results/<FRUSTRATION_MTENC|FRUSTRATION_TMENC>/<MTENC_CAPSIDS|TMENC_CAPSIDS>/<MtEnc|TmEnc><0|...|1000|...>_aligned_monomers")
+l 293 :  "rmsf_with_std_<MtEnc|TmEnc>_capsids_<0|...|1000|...>.png"
+l 234 : f"../plots/<MtEnc|TmEnc>/{name_plot}"
+AND
+or isolate the funtions that make the structural alignment
+or organise all the plot generation with options of clculate only a part of it of alls of it
+
+'''
+'''
+This scripts take one pdf File containing multiples monomers (chains) and make a structural alignment and mesure the  mean RMSF for all the monomers per #res
+A plot is add to the plot directory, with name of type rmsf_per_res_TmEnc_capsids_<(t)>.png
+The aligned PDB files are added to the result directory. 
+Usage:
+
+python3 structural_align.py chemin/vers/fichier.pdb
+'''
 
 # delete non essential warning
 warnings.simplefilter('ignore', BiopythonWarning)
@@ -54,9 +75,8 @@ def structural_alignment(monomers):
         aligned.append(monomer)
 
     return aligned
-#test 2.1
 
-
+#3.
 def save_each_monomer_as_pdb(aligned_monomers, output_dir="aligned_monomers"):
     """
     Enregistre chaque monomère dans un fichier PDB séparé
@@ -90,7 +110,7 @@ def save_each_monomer_as_pdb(aligned_monomers, output_dir="aligned_monomers"):
             atom_number += 1
 
         # Nom du fichier de sortie
-        output_file = os.path.join(output_dir, f"TmEnc0_monomer{i}.pdb")
+        output_file = os.path.join(output_dir, f"TmEnc1000_monomer{i}.pdb")
 
         # Sauvegarde
         io = PDBIO()
@@ -99,11 +119,7 @@ def save_each_monomer_as_pdb(aligned_monomers, output_dir="aligned_monomers"):
 
         print(f"Monomère {i} sauvegardé dans {output_file}")
 
-
-
-
-
-#3.
+#4.
 def coord_of_atom (aligned_monomers) :
     """return a dico with the list of cords for all the atoms of each residue"""
     # dico_of_atoms = {MET: {CA:[[x1,y1,z1],    , ... },...}
@@ -153,7 +169,7 @@ def coord_of_atom (aligned_monomers) :
     #print(dico_of_atoms['MET1'])
     return  dico_of_atoms
 
-#4.1. Calculate standard deviation for atom positions
+#5.1. Calculate standard deviation for atom positions
 def calculate_atom_std(list_of_coord):
     """Take a list of 3D coordinates and calculate standard deviation for atom positions"""
     mean_pos = np.mean(list_of_coord, axis=0)
@@ -161,7 +177,7 @@ def calculate_atom_std(list_of_coord):
     distances = np.sqrt(np.sum(displacements**2, axis=1))
     return np.std(distances)
 
-#4.2.
+#5.2.
 def calculate_atom_RMSF(list_of_coord):
     """Take a list of 3D coordinates and calculate the corresponding RMSF."""
     # Calcul de la position moyenne
@@ -177,7 +193,7 @@ def calculate_atom_RMSF(list_of_coord):
     rmsf = np.sqrt(mean_squared_disp)
     return rmsf
 
-#5.1 Calculate RMSF and standard deviation for atom positions
+#6.1 Calculate RMSF and standard deviation for atom positions
 def RMSF_std_of_atom(dico_of_atoms):
     """Calculate RMSF and standard deviation for all atoms"""
     dico_of_atom_stats = {}
@@ -190,7 +206,7 @@ def RMSF_std_of_atom(dico_of_atoms):
                 'std': calculate_atom_std(coords)
             }
     return dico_of_atom_stats
-#5.2
+#6.2
 def RMSF_std_of_Residue(dico_of_atom_RMSF_std):
     """Calculate average RMSF and std per residue"""
     dico_of_residue_RMSF_std = {}
@@ -219,16 +235,16 @@ def main(pdb_file):
     #test_res =calculate_atom_RMSF(test_list)
     #print(test_res)
 
-    # 2. Alignement structural
+    # 3. Alignement structural
     aligned = structural_alignment(monomers)
     print("Structural alignment completed")
     # print(aligned)
 
-    #test 2.1
+    #test 3.1
     # Exemple d'utilisation
-    save_each_monomer_as_pdb(aligned, "../results/FRUSTRATION_TMENC/TMENC_CAPSIDS/TmEnc0_aligned_monomers/")
+    save_each_monomer_as_pdb(aligned, "../results/FRUSTRATION_TMENC/TMENC_CAPSIDS/TmEnc1000_aligned_monomers")
 
-    # 3. create dico of coord of each atom
+    # 5. create dico of coord of each atom
     dico_of_coords = coord_of_atom(aligned)
     print("coordinates parsed")
 
@@ -237,16 +253,16 @@ def main(pdb_file):
     #test_res =calculate_atom_std(test_list)
     #print(test_res)
 
-    #5.1
+    #6.1
     dico_atom_RMSF_STD = RMSF_std_of_atom(dico_of_coords)
     print("atoms RMSF and std calculated")
 
-    #5.2
+    #6.2
     dico_res_RMSF_STD = RMSF_std_of_Residue(dico_atom_RMSF_STD)
     #print(dico_res_RMSF_STD)
     print("residues RMSF and std calculated")
 
-    #6 grafical view
+    #7 grafical view
     residues = list(dico_res_RMSF_STD.keys())
     rmsf_values = []
     std_values = []
@@ -275,8 +291,8 @@ def main(pdb_file):
     plt.legend([f'RMSF (#res={len(residues)} , #monomeres={len(monomers)} )'], fontsize=9)
     plt.tight_layout()
 
-    name_plot = "rmsf_with_std_TmEnc_capsids_0.png"
-    plt.savefig(f"../plots/{name_plot}", dpi=300, bbox_inches='tight', facecolor='white')
+    name_plot = "rmsf_with_std_TmEnc_capsids_1000.png"
+    plt.savefig(f"../plots/TmEnc/{name_plot}", dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
 
     print(f"Plot with standard deviation saved as {name_plot}")

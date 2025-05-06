@@ -11,6 +11,7 @@ from Bio.Seq import Seq
 
 
 '''
+This script take one or two PDB file and realise a global alignement to found the similar domains
 Usage:
 get the sequence of one PDB :python3 parser_pdb.py chemin/vers/fichier.pdb
 Get the seqeunce for two PBD and compare it : python3 parser_pdb.py chemin/vers/1erfichier.pdb parser_pdb.py chemin/vers/2emefichier.pdb
