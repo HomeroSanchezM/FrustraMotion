@@ -11,13 +11,8 @@ import re
 
 '''
 TO DO : 
-take the <(t)> number and the type <MtEnc|TmEnc> of the file name for adding to the name of the plot automaticly
-to do it have to change :
-l 111 : f"<MtEnc|TmEnc><0|...|1000|...>_monomer{i}.pdb"
-l 243 : "../results/<FRUSTRATION_MTENC|FRUSTRATION_TMENC>/<MTENC_CAPSIDS|TMENC_CAPSIDS>/<MtEnc|TmEnc><0|...|1000|...>_aligned_monomers")
-l 293 :  "rmsf_with_std_<MtEnc|TmEnc>_capsids_<0|...|1000|...>.png"
-l 234 : f"../plots/<MtEnc|TmEnc>/{name_plot}"
-AND
+
+
 or isolate the funtions that make the structural alignment
 or organise all the plot generation with options of clculate only a part of it of alls of it
 
@@ -29,31 +24,47 @@ The aligned PDB files are added to the result directory.
 Usage:
 
 python3 structural_align.py chemin/vers/fichier.pdb
+
+If 2 files given as parameter, the script will align the 2 files structures entirely (not considering monmers)
+
+Usage:
+
+python3 structural_align.py chemin/vers/1erfichier.pdb parser_pdb.py chemin/vers/2emefichier.pdb
 '''
 
 # delete non essential warning
 warnings.simplefilter('ignore', BiopythonWarning)
 #1.
 def extract_info_from_filename(pdb_file):
-    """Extract the type (MtEnc/TmEnc) and number (t) from the filename"""
+    """
+    Extract the type (MtEnc/TmEnc) and number from the filename.
+    Handles both formats:
+    - MtEnc_0.pdb
+    - MtEnc_monomer_0.pdb
+    """
     filename = os.path.basename(pdb_file)
-    # Pattern search of a name followed by a number, have to be generalised of others types of encapsulins / proteins
-    match = re.search(r'(MtEnc|TmEnc)_(\d+)', filename)
+
+    # Pattern for both formats:
+    # 1. MtEnc_0.pdb
+    # 2. MtEnc_monomer_0.pdb
+    match = re.search(r'(MtEnc|TmEnc)(?:_monomer)?_(\d+)', filename)
+
     if match:
         enc_type = match.group(1)
         enc_number = match.group(2)
         return enc_type, enc_number
     else:
-        # error if the name of the given file not follow this structure, have to be generalised
         raise ValueError(
-            f"Filename '{filename}' doesn't match expected pattern. "
-            "Expected format: '.../MtEnc<number>.pdb' or '.../TmEnc<number>.pdb' "
+            f"Filename '{filename}' doesn't match expected patterns. "
+            "Expected formats:\n"
+            "1. '.../MtEnc_<number>.pdb'\n"
+            "2. '.../MtEnc_monomer_<number>.pdb'\n"
+            "3. Same with TmEnc\n"
             "where <number> is one or more digits."
         )
-
 #2.
 def load_monomers(pdb_file):
-    """Load the n monomers, corresponding to the chains"""
+    """Load the n monomers, corresponding to the chains in a list"""
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure("encapsulin", pdb_file)
 
@@ -62,39 +73,83 @@ def load_monomers(pdb_file):
         for chain in model:
             chains.append(chain)
     return chains
+#2.2
+def load_pdb(pdb_file):
+    """Load the PDB file and return it"""
+    parser = PDBParser(QUIET=True)
+    structure = parser.get_structure("encapsulin", pdb_file)
+    return structure
 
 #3.
 def structural_alignment(monomers):
     """Align all the monomers to the first one"""
     super_imposer = Superimposer()
+
+     # Handle empty input
+    if not monomers:
+        return []
+
+    # Determine input type (Chain or Structure)
     reference = monomers[0]
+    is_chain = hasattr(reference, 'get_atoms') and not hasattr(reference, 'get_chains')
+    is_structure = hasattr(reference, 'get_chains')
+    if not (is_chain or is_structure):
+        raise ValueError("Input must be either list of Chains or list of Structures")
+
     aligned = [reference]
-
-    # parse the CA atoms of the reference monomer
-    ref_atoms = []
-    for residue in reference:
-        for atom in residue:
-            if atom.id == 'CA':
-                ref_atoms.append(atom)
-
-    for monomer in monomers[1:]:
-        # parse the CA atoms of the mobile monomers
-        mobile_atoms = []
-        for residue in monomer:
+    if is_chain :
+        # parse the CA atoms of the reference monomer
+        ref_atoms = []
+        for residue in reference:
             for atom in residue:
                 if atom.id == 'CA':
-                    mobile_atoms.append(atom)
-        # Align to the reference
-        super_imposer.set_atoms(ref_atoms, mobile_atoms)
-        # apply the regulation to the mobile monomers
-        super_imposer.apply(monomer)
-        # add the regulated monomers to the list aligned
-        aligned.append(monomer)
+                    ref_atoms.append(atom)
+
+        for monomer in monomers[1:]:
+            # parse the CA atoms of the mobile monomers
+            mobile_atoms = []
+            for residue in monomer:
+                for atom in residue:
+                    if atom.id == 'CA':
+                        mobile_atoms.append(atom)
+            # Align to the reference
+            super_imposer.set_atoms(ref_atoms, mobile_atoms)
+            # apply the regulation to the mobile monomers
+            super_imposer.apply(monomer)
+            # add the regulated monomers to the list aligned
+            aligned.append(monomer)
+    else :
+        print("on rentre dans le else")
+        # parse the CA atoms of the reference monomer
+        ref_atoms = []
+        for model in reference:
+            for monomer in model:
+                for residue in monomer:
+                    for atom in residue:
+                        if atom.id == 'CA':
+                            ref_atoms.append(atom)
+
+        for struct in monomers[1:]:
+            # parse the CA atoms of the mobile monomers
+            mobile_atoms = []
+            for model in struct:
+                for monomer in model:
+                    for residue in monomer:
+                        for atom in residue:
+                            if atom.id == 'CA':
+                                mobile_atoms.append(atom)
+
+            # Align to the reference
+            super_imposer.set_atoms(ref_atoms, mobile_atoms)
+            # apply the regulation to the mobile monomers
+            super_imposer.apply(monomer)
+            # add the regulated monomers to the list aligned
+            aligned.append(monomer)
 
     return aligned
 
 #4.
-def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type , enc_number):
+def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type1 , enc_number1, enc_type2 = None ,enc_number2 = None ):
     """
     Save each monomer in a file (atom number for 1 file is limited to 99999 by PDBIO)
     Args:
@@ -106,37 +161,57 @@ def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type , enc_number
     """
     # Create the output directory
     os.makedirs(output_dir, exist_ok=True)
-
+    print(f"aligned monomere a {len(aligned_monomers)} monomers")
     for i, monomer in enumerate(aligned_monomers, start=1):
-        # Create the structure
-        structure = Structure.Structure(f"MONOMER_{i}")
-        model = Model.Model(0)
-        structure.add(model)
+        if enc_type2 == None :
+            # Create the structure
+            structure = Structure.Structure(f"MONOMER_{i}")
+            model = Model.Model(0)
+            structure.add(model)
 
-        # Create a new chain
-        new_chain = Chain.Chain("A")
+            # Create a new chain
+            new_chain = Chain.Chain("A")
 
-        # add the residues of the monomer
-        for residue in monomer:
-            new_chain.add(residue)
+            # add the residues of the monomer
+            for residue in monomer:
+                new_chain.add(residue)
 
-        model.add(new_chain)
+            model.add(new_chain)
 
-        # addapt the serial number of atoms
-        atom_number = 1
-        for atom in structure.get_atoms():
-            atom.set_serial_number(atom_number)
-            atom_number += 1
+            # addapt the serial number of atoms
+            atom_number = 1
+            for atom in structure.get_atoms():
+                atom.set_serial_number(atom_number)
+                atom_number += 1
+            output_file = os.path.join(output_dir, f"{enc_type1}{enc_number1}_monomer{i}.pdb")
 
-        # name of the output file
-        output_file = os.path.join(output_dir, f"{enc_type}{enc_number}_monomer{i}.pdb")
+            # create de pdb
+            io = PDBIO()
+            io.set_structure(structure)
+            io.save(output_file)
 
-        # create de pdb
-        io = PDBIO()
-        io.set_structure(structure)
-        io.save(output_file)
 
-        print(f"Monomer {i} save in {output_file}")
+            print(f"Monomer {i} save in {output_file}")
+        else :
+
+            structure = Structure.Structure(f"MONOMER_{i}")
+            structure.add(monomer)
+
+
+            enc_type = {1:enc_type1, 2:enc_type2}
+            enc_number = {1:enc_number1, 2:enc_number2}
+            output_file = os.path.join(output_dir, f"{enc_type[i]}{enc_number[i]}_monomer{i}.pdb")
+
+
+             # create de pdb
+            io = PDBIO()
+            io.set_structure(monomer)
+            io.save(output_file)
+            print(f"Monomer {i} save in {output_file}")
+
+
+
+
 
 #5.
 def coord_of_atom (aligned_monomers) :
@@ -229,11 +304,11 @@ def RMSF_std_of_Residue(dico_of_atom_RMSF_std):
         }
     return dico_of_residue_RMSF_std
 
-
-def main(pdb_file):
+#when only a file given
+def main(pdb_file1):
 
     # 1. Extract the type (MtEnc/TmEnc) and number (t) from the filename
-    enc_type, enc_number = extract_info_from_filename(pdb_file)
+    enc_type, enc_number = extract_info_from_filename(pdb_file1)
 
     #1.1. create the output directory path
     frustration_dir = f"FRUSTRATION_{enc_type.upper()}"
@@ -247,7 +322,7 @@ def main(pdb_file):
     os.makedirs(plots_dir, exist_ok=True)
 
     # 2. Charger les monomères
-    monomers = load_monomers(pdb_file)
+    monomers = load_monomers(pdb_file1)
     print(f"Loaded {len(monomers)} monomers")
 
     # 3. Alignement structural
@@ -305,16 +380,55 @@ def main(pdb_file):
 
     print(f"Plot with standard deviation saved as {plot_path}")
 
+#when 2 files given in parameters
+def main2(pdb_file1, pdb_file2):
+    # 1. Extract the type (MtEnc/TmEnc) and number (t) from the filenames
+    enc_type1, enc_number1 = extract_info_from_filename(pdb_file1)
+    enc_type2, enc_number2 = extract_info_from_filename(pdb_file2)
+
+    #1.1. create the output directory path
+    common_dir = "COMMON" #could not be common but has to be generalised
+    type_dir = "CHAIN_A" #or MONOMER or CHAIN_A has to be automated, CAPSID would not work cause have more than 99999 atoms
+    results_dir = os.path.join("../results", common_dir, type_dir, f"{enc_type1}{enc_number1}_{enc_type2}{enc_number2}_structural_align")#f"{enc_type1}{enc_number1}_{enc_type2}{enc_number2}_structural_align"
+
+    #1.2 create the repository if it not exist
+    os.makedirs(results_dir, exist_ok=True)
+
+    # 2. Charger les pdb
+    structure_list = []
+    pdb1 = load_pdb(pdb_file1)
+    pdb2 = load_pdb(pdb_file2)
+    structure_list.append(pdb1)
+    structure_list.append(pdb2)
+    print(f"Loaded two structures")
+
+    # 3. Alignement structural
+    aligned = structural_alignment(structure_list)
+    print("Structural alignment completed")
+
+     # 4. create aligned PDB files
+    save_each_monomer_as_pdb(aligned, results_dir, enc_type1, enc_number1 , enc_type2, enc_number2)
+    print("finish adding files")
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
+    if len(sys.argv) != 2 and len(sys.argv) != 3:
         print("Usage: python analyze_encapsulin.py path/to/encapsulin.pdb")
         sys.exit(1)
-    try:
-        main(sys.argv[1])
-    except ValueError as e:
-        print(f"Error: {e}")
-        sys.exit(1)
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        sys.exit(1)
+    elif len(sys.argv) ==2:
+        try:
+            main(sys.argv[1])
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            sys.exit(1)
+    elif len(sys.argv) ==3:
+        try:
+            main2(sys.argv[1], sys.argv[2])
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            sys.exit(1)
