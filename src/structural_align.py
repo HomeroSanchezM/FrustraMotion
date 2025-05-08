@@ -314,7 +314,8 @@ def main(pdb_file1):
     #1.1. create the output directory path
     frustration_dir = f"FRUSTRATION_{enc_type.upper()}"
     capsids_dir = f"{enc_type.upper()}_CAPSIDS"
-    results_dir = os.path.join("../results", frustration_dir, capsids_dir, f"{enc_type}{enc_number}_aligned_monomers")
+    monomer_dir = "aligned_monomer_for_a_frame"
+    results_dir = os.path.join("../results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_aligned_monomers")
 
     plots_dir = os.path.join("../plots", enc_type)
 

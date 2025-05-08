@@ -183,68 +183,148 @@ def structural_alignment(monomers):
     return aligned
 
 #4.
-def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type1 , file_dict1,monomer_number, enc_type2 = None ,file_dict2 = None ):
+def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type, file_dict, monomer_number):
     """
-    Save each monomer in a file (atom number for 1 file is limited to 99999 by PDBIO)
-    Args:
-        aligned_monomers: List of chain object (Monomers)
-        output_dir
-        enc_type: Type of encapsulin (MtEnc/TmEnc) have to be generalised
-        enc_number: Number of the encapsulin file
+    Save each monomer in a file with naming convention: "<enc_type><frame_number>_monomer<monomer_number>.pdb"
 
+    Args:
+        aligned_monomers: List of chain objects (Monomers)
+        output_dir: Directory to save the PDB files
+        enc_type: Type of encapsulin (MtEnc/TmEnc)
+        file_dict: Dictionary mapping frame numbers to file paths
+        monomer_number: Number of the wanted monomer
     """
     # Create the output directory
     os.makedirs(output_dir, exist_ok=True)
-    print(f"aligned monomere a {len(aligned_monomers)} monomers")
-    for i, monomer in enumerate(aligned_monomers, start=1)and frame_number, path in sorted(file_dict1.items()) :
-        if enc_type2 == None :
-            # Create the structure
-            structure = Structure.Structure(f"MONOMER_{i}")
-            model = Model.Model(0)
-            structure.add(model)
+    print(f"Saving {len(aligned_monomers)} aligned monomers")
 
-            # Create a new chain
-            new_chain = Chain.Chain("A")
+    # Check we have same number of monomers and frames
+    if len(aligned_monomers) != len(file_dict):
+        raise ValueError(f"Mismatch between number of monomers ({len(aligned_monomers)}) and frames ({len(file_dict)})")
 
-            # add the residues of the monomer
-            for residue in monomer:
-                new_chain.add(residue)
+    # Iterate through aligned monomers and frame numbers together
+    for (frame_number, _), monomer in zip(sorted(file_dict.items()), aligned_monomers):
+        # Create the structure
+        structure = Structure.Structure(f"MONOMER_{frame_number}")
+        model = Model.Model(0)
+        structure.add(model)
 
-            model.add(new_chain)
+        # Create a new chain
+        new_chain = Chain.Chain("A")
 
-            # addapt the serial number of atoms
-            atom_number = 1
-            for atom in structure.get_atoms():
-                atom.set_serial_number(atom_number)
-                atom_number += 1
-            output_file = os.path.join(output_dir, f"{enc_type1}{frame_number}_monomer{monomer_number}.pdb")
+        # Add the residues of the monomer
+        for residue in monomer:
+            new_chain.add(residue)
 
-            # create de pdb
-            io = PDBIO()
-            io.set_structure(structure)
-            io.save(output_file)
+        model.add(new_chain)
+
+        # Adjust the serial number of atoms
+        atom_number = 1
+        for atom in structure.get_atoms():
+            atom.set_serial_number(atom_number)
+            atom_number += 1
+
+        # Create output filename
+        output_file = os.path.join(output_dir, f"{enc_type}{frame_number}_monomer{monomer_number}.pdb")
+
+        # Save the PDB file
+        io = PDBIO()
+        io.set_structure(structure)
+        io.save(output_file)
+
+        print(f"Saved frame {frame_number} as {output_file}")
+
+#5.
+def coord_of_atom (aligned_monomers) :
+    """return a dico with the list of cords for all the atoms of each residue"""
+    # dico_of_atoms = {MET: {CA:[[x1,y1,z1],    , ... },...}
+    #                            [x2,y2,z2],
+    #                            ...
+    #                            [x60,y60,z60]]
+    dico_of_atoms = {}
+
+    for k in range (len(list(list(aligned_monomers)[0]))) : #for obtain the number of residues = 264 for TmEnc
+        for monomer in aligned_monomers :
+            name_res = list(monomer)[k].get_resname() +" "+  str(k+1)
+            if name_res in dico_of_atoms :
+                atoms = list(monomer)[k].get_atoms()
+                for atom in atoms:
+                    if atom.id in dico_of_atoms[name_res]:
+                        coord = atom.get_coord()
+                        dico_of_atoms[name_res][atom.id].append(coord)
+                    else:
+                        dico_of_atoms[name_res][atom.id] = []
+                        coord = atom.get_coord()
+                        dico_of_atoms[name_res][atom.id].append(coord)
+
+            else :
+                dico_of_atoms[name_res]={}
+                atoms = list(monomer)[k].get_atoms()
+                for atom in atoms:
+                    if atom.id in dico_of_atoms[name_res]:
+                        coord = atom.get_coord()
+                        dico_of_atoms[name_res][atom.id].append(coord)
+                    else:
+                        dico_of_atoms[name_res][atom.id] = []
+                        coord = atom.get_coord()
+                        dico_of_atoms[name_res][atom.id].append(coord)
+    return  dico_of_atoms
+
+#6.1. Calculate standard deviation for atom positions
+def calculate_atom_std(list_of_coord):
+    """Take a list of 3D coordinates and calculate standard deviation for atom positions"""
+    mean_pos = np.mean(list_of_coord, axis=0)
+    displacements = list_of_coord - mean_pos
+    distances = np.sqrt(np.sum(displacements**2, axis=1))
+    return np.std(distances)
+
+#6.2.
+def calculate_atom_RMSF(list_of_coord):
+    """Take a list of 3D coordinates and calculate the corresponding RMSF."""
+    # Calcul de la position moyenne
+    mean_pos = np.mean(list_of_coord, axis=0)
+    #print(mean_pos)
+    # Fluctuations (vecteurs de déplacement)
+    displacements = list_of_coord - mean_pos
+    # Norme au carré de chaque vecteur
+    squared_displacements = np.sum(displacements ** 2, axis=1)
+    # Moyenne des normes au carré
+    mean_squared_disp = np.mean(squared_displacements)
+     # RMSF
+    rmsf = np.sqrt(mean_squared_disp)
+    return rmsf
 
 
-            print(f"Monomer {i} save in {output_file}")
-        else :
-
-            structure = Structure.Structure(f"MONOMER_{i}")
-            structure.add(monomer)
-
-
-            enc_type = {1:enc_type1, 2:enc_type2}
-            enc_number = {1:file_dict1, 2:file_dict2}
-            #output_file = os.path.join(output_dir, f"{enc_type[i]}{enc_number[i]}_monomer{monomer_number}.pdb")
-
-
-             # create de pdb
-            #io = PDBIO()
-            #io.set_structure(monomer)
-            #io.save(output_file)
-            print(f"Work in process")
-
-
-
+#7.1 Calculate RMSF and standard deviation for atom positions
+def RMSF_std_of_atom(dico_of_atoms):
+    """Calculate RMSF and standard deviation for all atoms"""
+    dico_of_atom_stats = {}
+    for residue in dico_of_atoms:
+        dico_of_atom_stats[residue] = {}
+        for atom in dico_of_atoms[residue]:
+            coords = dico_of_atoms[residue][atom]
+            dico_of_atom_stats[residue][atom] = {
+                'rmsf': calculate_atom_RMSF(coords),
+                'std': calculate_atom_std(coords)
+            }
+    return dico_of_atom_stats
+#7.2 Calculate RMSF and standard deviation for residue
+def RMSF_std_of_Residue(dico_of_atom_RMSF_std):
+    """Calculate average RMSF and std per residue"""
+    dico_of_residue_RMSF_std = {}
+    for residue in dico_of_atom_RMSF_std:
+        total_rmsf = 0
+        total_std = 0
+        count = 0
+        for atom in dico_of_atom_RMSF_std[residue]:
+            total_rmsf += dico_of_atom_RMSF_std[residue][atom]['rmsf']
+            total_std += dico_of_atom_RMSF_std[residue][atom]['std']
+            count += 1
+        dico_of_residue_RMSF_std[residue] = {
+            'rmsf': total_rmsf / count,
+            'std': total_std / count
+        }
+    return dico_of_residue_RMSF_std
 
 
 
@@ -262,7 +342,8 @@ def main(pdb_directory, monomer_number):
     #1.1. create the output directory path
     frustration_dir = f"FRUSTRATION_{enc_type.upper()}"
     capsids_dir = f"{enc_type.upper()}_CAPSIDS"
-    results_dir = os.path.join("../results", frustration_dir, capsids_dir, f"{enc_type}_monomer_{monomer_number}_aligned_frames")
+    frames_dir = "aligned_frames_for_a_monomer"
+    results_dir = os.path.join("../results", frustration_dir, capsids_dir,frames_dir, f"{enc_type}_monomer_{monomer_number}_aligned_frames")
 
     plots_dir = os.path.join("../plots", enc_type)
 
@@ -280,6 +361,55 @@ def main(pdb_directory, monomer_number):
 
     # 4. create aligned PDB files
     save_each_monomer_as_pdb(aligned, results_dir, enc_type, files_dict, monomer_number)
+
+    # 5. create dico of coord of each atom
+    dico_of_coords = coord_of_atom(aligned)
+    print("atoms coordinates parsed")
+
+    #7.1 Calculate RMSF and standard deviation for atom positions
+    dico_atom_RMSF_STD = RMSF_std_of_atom(dico_of_coords)
+    print("atoms RMSF and std calculated")
+
+    #7.2 Calculate RMSF and standard deviation for residue
+    dico_res_RMSF_STD = RMSF_std_of_Residue(dico_atom_RMSF_STD)
+    print("residues RMSF and std calculated")
+    print(dico_res_RMSF_STD["MET 1"])
+
+    #8 grafical view
+    residues = list(dico_res_RMSF_STD.keys())
+    rmsf_values = []
+    std_values = []
+    for res in dico_res_RMSF_STD :
+        rmsf_values.append(dico_res_RMSF_STD[res]['rmsf'] )
+        std_values.append(dico_res_RMSF_STD[res]['std'])
+
+    plt.figure(figsize=(15, 6))
+
+    # Plot with error bars
+    plt.errorbar(range(len(residues)), rmsf_values, yerr=std_values,
+                 fmt='-o', markersize=3, linewidth=1,
+                 color='blue', alpha=0.7,
+                 ecolor='red', elinewidth=0.5, capsize=2,
+                 label='RMSF ± std')
+
+    # Customize x-axis
+    plt.xticks(range(len(residues))[::3], residues[::3],
+               rotation=45, fontsize=8, ha='right')
+
+    plt.xlabel('Residue Number', fontsize=10)
+    plt.ylabel('RMSF (Å)', fontsize=10)
+    plt.title(f"Residue Flexibility Analysis of  monomer {monomer_number} of {enc_type} for {len(files_dict)} frames ", fontsize=12, pad=20)
+    plt.grid(True, alpha=0.3)
+    #plt.legend(fontsize=9)
+    plt.legend([f'RMSF (#res={len(residues)} , #frames={len(monomers)} )'], fontsize=9)
+    plt.tight_layout()
+
+    name_plot = f"rmsf_with_std_per_frame_{enc_type}_monomer_{monomer_number}.png"
+    plot_path = os.path.join(plots_dir, name_plot)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+
+    print(f"Plot with standard deviation saved as {plot_path}")
 
 
 if __name__ == "__main__":
