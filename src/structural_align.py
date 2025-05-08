@@ -18,8 +18,8 @@ or organise all the plot generation with options of clculate only a part of it o
 
 '''
 '''
-This scripts take one pdf File containing multiples monomers (chains) and make a structural alignment and mesure the  mean RMSF for all the monomers per #res
-A plot is add to the plot directory, with name of type rmsf_per_res_TmEnc_capsids_<(t)>.png
+This scripts take one PDB File containing multiples monomers (chains) and make a structural alignment of the monomers and mesure the  mean RMSF for all the monomers per #res
+A plot is add to the plot directory, with name of type rmsf_with_std_per_res_<TmEnc|MtEnc>_monomer_<(t)>.png
 The aligned PDB files are added to the result directory. 
 Usage:
 
@@ -273,6 +273,7 @@ def calculate_atom_RMSF(list_of_coord):
     rmsf = np.sqrt(mean_squared_disp)
     return rmsf
 
+
 #7.1 Calculate RMSF and standard deviation for atom positions
 def RMSF_std_of_atom(dico_of_atoms):
     """Calculate RMSF and standard deviation for all atoms"""
@@ -343,6 +344,7 @@ def main(pdb_file1):
     #7.2 Calculate RMSF and standard deviation for residue
     dico_res_RMSF_STD = RMSF_std_of_Residue(dico_atom_RMSF_STD)
     print("residues RMSF and std calculated")
+    #print(dico_res_RMSF_STD["MET 1"])
 
     #8 grafical view
     residues = list(dico_res_RMSF_STD.keys())
@@ -367,13 +369,13 @@ def main(pdb_file1):
 
     plt.xlabel('Residue Number', fontsize=10)
     plt.ylabel('RMSF (Å)', fontsize=10)
-    plt.title('Residue Flexibility Analysis with Standard Deviation', fontsize=12, pad=20)
+    plt.title(f"Residue Flexibility Analysis of {enc_type} at frame {enc_number} ", fontsize=12, pad=20)
     plt.grid(True, alpha=0.3)
     #plt.legend(fontsize=9)
     plt.legend([f'RMSF (#res={len(residues)} , #monomeres={len(monomers)} )'], fontsize=9)
     plt.tight_layout()
 
-    name_plot = f"rmsf_with_std_{enc_type}_capsids_{enc_number}.png"
+    name_plot = f"rmsf_with_std_per_res_{enc_type}_monomer_{enc_number}.png"
     plot_path = os.path.join(plots_dir, name_plot)
     plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
@@ -412,7 +414,7 @@ def main2(pdb_file1, pdb_file2):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2 and len(sys.argv) != 3:
-        print("Usage: python analyze_encapsulin.py path/to/encapsulin.pdb")
+        print("Usage: python3 analyze_encapsulin.py path/to/encapsulin.pdb \n or python3 structural_align.py chemin/vers/1erfichier.pdb parser_pdb.py chemin/vers/2emefichier.pdb")
         sys.exit(1)
     elif len(sys.argv) ==2:
         try:
