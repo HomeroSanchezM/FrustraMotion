@@ -271,12 +271,9 @@ def coord_of_atom (aligned_monomers) :
     return  dico_of_atoms
 
 #6.1. Calculate standard deviation for atom positions
-def calculate_atom_std(list_of_coord):
-    """Take a list of 3D coordinates and calculate standard deviation for atom positions"""
-    mean_pos = np.mean(list_of_coord, axis=0)
-    displacements = list_of_coord - mean_pos
-    distances = np.sqrt(np.sum(displacements**2, axis=1))
-    return np.std(distances)
+def calculate_residue_std(list_of_RMSF):
+    """Take a list of atomical RMSF (the RMSF of all the atoms of a residue) and calculate standard deviation for the RMSF of the residue"""
+    return np.std(list_of_RMSF)
 
 #6.2.
 def calculate_atom_RMSF(list_of_coord):
@@ -305,24 +302,26 @@ def RMSF_std_of_atom(dico_of_atoms):
             coords = dico_of_atoms[residue][atom]
             dico_of_atom_stats[residue][atom] = {
                 'rmsf': calculate_atom_RMSF(coords),
-                'std': calculate_atom_std(coords)
+                #'std': calculate_atom_std(coords)
             }
     return dico_of_atom_stats
 #7.2 Calculate RMSF and standard deviation for residue
-def RMSF_std_of_Residue(dico_of_atom_RMSF_std):
+def RMSF_std_of_Residue(dico_of_atom_RMSF):
     """Calculate average RMSF and std per residue"""
     dico_of_residue_RMSF_std = {}
-    for residue in dico_of_atom_RMSF_std:
+    for residue in dico_of_atom_RMSF:
         total_rmsf = 0
         total_std = 0
         count = 0
-        for atom in dico_of_atom_RMSF_std[residue]:
-            total_rmsf += dico_of_atom_RMSF_std[residue][atom]['rmsf']
-            total_std += dico_of_atom_RMSF_std[residue][atom]['std']
+        list_of_RMSF = []
+        for atom in dico_of_atom_RMSF[residue]:
+            total_rmsf += dico_of_atom_RMSF[residue][atom]['rmsf']
+            list_of_RMSF.append(dico_of_atom_RMSF[residue][atom]['rmsf'])
+            #total_std += dico_of_atom_RMSF_std[residue][atom]['std']
             count += 1
         dico_of_residue_RMSF_std[residue] = {
             'rmsf': total_rmsf / count,
-            'std': total_std / count
+            'std': calculate_residue_std(list_of_RMSF)
         }
     return dico_of_residue_RMSF_std
 
