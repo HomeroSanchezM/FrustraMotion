@@ -9,6 +9,8 @@ import os
 import re
 import gzip
 import shutil
+import time
+
 
 
 '''
@@ -328,6 +330,7 @@ def RMSF_std_of_Residue(dico_of_atom_RMSF):
 
 
 def main(pdb_directory, monomer_number):
+    start_time = time.time()
 
     #1.
     enc_type, files_dict, chain_dict = extract_info_from_directory(pdb_directory)
@@ -409,7 +412,9 @@ def main(pdb_directory, monomer_number):
     plt.close()
 
     print(f"Plot with standard deviation saved as {plot_path}")
-
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Temps d'exécution: {execution_time:.2f} secondes")
 
 if __name__ == "__main__":
     if len(sys.argv) != 3 :

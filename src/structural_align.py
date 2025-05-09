@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from Bio.PDB import PDBIO, Structure, Model, Chain
 import os
 import re
+import time
+
 
 
 '''
@@ -305,7 +307,7 @@ def RMSF_std_of_Residue(dico_of_atom_RMSF):
 
 #when only a file given
 def main(pdb_file1):
-
+    start_time = time.time()
     # 1. Extract the type (MtEnc/TmEnc) and number (t) from the filename
     enc_type, enc_number = extract_info_from_filename(pdb_file1)
 
@@ -380,9 +382,13 @@ def main(pdb_file1):
     plt.close()
 
     print(f"Plot with standard deviation saved as {plot_path}")
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Temps d'exécution: {execution_time:.2f} secondes")
 
 #when 2 files given in parameters
 def main2(pdb_file1, pdb_file2):
+    start_time = time.time()
     # 1. Extract the type (MtEnc/TmEnc) and number (t) from the filenames
     enc_type1, enc_number1 = extract_info_from_filename(pdb_file1)
     enc_type2, enc_number2 = extract_info_from_filename(pdb_file2)
@@ -410,6 +416,10 @@ def main2(pdb_file1, pdb_file2):
      # 4. create aligned PDB files
     save_each_monomer_as_pdb(aligned, results_dir, enc_type1, enc_number1 , enc_type2, enc_number2)
     print("finish adding files")
+
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Temps d'exécution: {execution_time:.2f} secondes")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2 and len(sys.argv) != 3:
