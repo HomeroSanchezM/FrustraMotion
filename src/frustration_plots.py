@@ -270,9 +270,11 @@ def main(pdb_file1):
     results_pdb_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_monomers")
     results_frustration_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_frustration")
 
+    plots_dir = os.path.join("../plots", enc_type, "frustration")
 
     #1.2 create the repository if it not exist
     os.makedirs(results_pdb_dir, exist_ok=True)
+    os.makedirs(plots_dir, exist_ok=True)
 
     # 2. Charger les monomères
     monomers = load_monomers(pdb_file1)
@@ -286,8 +288,53 @@ def main(pdb_file1):
 
     #6
     dico_monomers = dico_of_dico_frustIndex(results_frustration_dir)
-    print(dico_monomers)
+    #print(dico_monomers)
 
+
+    #7 grafical view
+    #monomers_id = list(dico_monomers.keys())
+    #residues = list(dico_monomers[1].keys())
+
+    plt.figure(figsize=(25, 8))
+
+    # Get all residues (sorted numerically)
+    sample_monomer = next(iter(dico_monomers.values()))  # Prend un monomer quelconque
+    residues = sorted(sample_monomer.keys(), key=lambda x: int(''.join(filter(str.isdigit, x))))
+
+    # Create x-axis positions
+    x = np.arange(len(residues))
+
+    # Plot each monomer
+    for monomer_id, frustration_data in dico_monomers.items():
+        # Get frustration values in residue order
+        y = [frustration_data[res] for res in residues]
+        plt.plot(x, y,
+            marker='o',
+            markersize=2,
+            linestyle='-',
+            linewidth=0.01,
+            alpha=0.7,
+            label=f'Monomer {monomer_id}')
+
+    # Customize plot
+    plt.xticks(range(len(residues))[::3], residues[::3],
+               rotation=45, fontsize=8, ha='right')
+    #plt.xticks(x, residues, rotation=45, ha='right', fontsize=8)
+    plt.xlabel('Residue ')
+    plt.ylabel('Frustration Index')
+    plt.title('Frustration Profiles Across Monomers')
+    plt.grid(True, alpha=0.3)
+
+    # Legend outside the plot
+    #plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+
+    name_plot = f"frustration_per_res_{enc_type}_monomer_{enc_number}.png"
+    plot_path = os.path.join(plots_dir, name_plot)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+
+    print(f"Plot with standard deviation saved as {plot_path}")
 
 
     end_time = time.time()
