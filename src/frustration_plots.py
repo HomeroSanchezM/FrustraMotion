@@ -248,10 +248,14 @@ def dico_of_dico_frustIndex(frustration_directory):
         for file in os.listdir(doc_path):
             if file.endswith("pdb_singleresidue"):
                 full_path = os.path.join(doc_path, file)
-                print("Cnom du fichier :",os.path.basename(full_path))
+                name_file = os.path.basename(full_path)
+                #print("nom du fichier :",name_file)
+                match = re.search(r'monomer(\d+)', name_file)
+                number = int(match.group(1))
                 dico_monomer = dico_frustIndex(full_path)
-                #print(dico)
-        break
+                dico_monomers[number]= dico_monomer
+
+    return dico_monomers
 
 #when only a file given
 def main(pdb_file1):
@@ -281,7 +285,8 @@ def main(pdb_file1):
     #calculate_frustration(results_pdb_dir, results_frustration_dir)
 
     #6
-    dico_of_dico_frustIndex(results_frustration_dir)
+    dico_monomers = dico_of_dico_frustIndex(results_frustration_dir)
+    print(dico_monomers)
 
 
 
