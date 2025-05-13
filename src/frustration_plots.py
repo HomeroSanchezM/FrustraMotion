@@ -8,7 +8,7 @@ from Bio.PDB import PDBIO, Structure, Model, Chain
 import os
 import re
 import time
-
+import subprocess
 
 
 '''
@@ -147,7 +147,52 @@ def calculate_frustration(PDB_directory, output_directory):
     :param output_directory: the directory to save the frustration results
     """
 
+    # check if directories exists
+    if not os.path.isdir(PDB_directory):
+        raise ValueError(f"PDB directory not found: {PDB_directory}")
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
 
+    # the temp R sript
+    r_script = """
+    # FrustratometeR calculation
+    library(frustratometeR)
+
+    # Lire le fichier PDB
+    pdb_file <- "{pdb_file}"
+    output_dir <- "{output_dir}"
+
+    # Calculer la frustration
+    results <- calculate_frustration(PdbFile = pdb_file, ResultsDir = output_dir, Graphics = FALSE)
+
+    """
+
+    # Pour chaque fichier PDB dans le répertoire
+    for pdb_file in os.listdir(PDB_directory):
+        if pdb_file.endswith('.pdb'):
+            full_path = os.path.join(PDB_directory, pdb_file)
+
+            # Personnaliser le script R pour ce fichier
+            current_script = r_script.format(
+                pdb_file=full_path,
+                output_dir=output_directory
+            )
+            #print(current_script)
+            # Écrire le script temporaire
+            with open('temp_frustration.R', 'w') as f:
+                f.write(current_script)
+
+
+            # Exécuter Rscript
+            try:
+                subprocess.run(['Rscript', 'temp_frustration.R'], check=True)
+                print(f"Successfully processed {pdb_file}")
+            except subprocess.CalledProcessError as e:
+                print(f"Error processing {pdb_file}: {e}")
+            finally:
+                # Nettoyer le fichier temporaire
+                if os.path.exists('temp_frustration.R'):
+                    os.remove('temp_frustration.R')
 
 #when only a file given
 def main(pdb_file1):
@@ -159,18 +204,24 @@ def main(pdb_file1):
     frustration_dir = f"FRUSTRATION_{enc_type.upper()}"
     capsids_dir = f"{enc_type.upper()}_CAPSIDS"
     monomer_dir = "FRUSTRATION_monomer_for_a_frame"
-    results_dir = os.path.join("../results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_monomers")
+    results_pdb_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_monomers")
+    results_frustration_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_frustration")
 
 
     #1.2 create the repository if it not exist
-    os.makedirs(results_dir, exist_ok=True)
+    os.makedirs(results_pdb_dir, exist_ok=True)
 
     # 2. Charger les monomères
     monomers = load_monomers(pdb_file1)
     print(f"Loaded {len(monomers)} monomers")
 
      # 3. create PDB files
-    save_each_monomer_as_pdb(monomers, results_dir, enc_type, enc_number)
+    save_each_monomer_as_pdb(monomers, results_pdb_dir, enc_type, enc_number)
+
+    # 4. calculation of frustration
+    calculate_frustration(results_pdb_dir, results_frustration_dir)
+
+
 
     end_time = time.time()
     execution_time = end_time - start_time
