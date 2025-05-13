@@ -13,10 +13,8 @@ import subprocess
 
 '''
 TO DO : 
+make the frustration calculation in order for the files
 
-
-or isolate the funtions that make the structural alignment
-or organise all the plot generation with options of clculate only a part of it of alls of it
 
 '''
 '''
@@ -141,6 +139,7 @@ def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type1 , enc_numbe
 
 #4 frustratometeR
 def calculate_frustration(PDB_directory, output_directory):
+
     """
     this function call the R package FrustratometeR for the calculation of frustration.
     :param PDB_directory: the directory of the pdb file used for the frustration calculation
@@ -163,11 +162,12 @@ def calculate_frustration(PDB_directory, output_directory):
     output_dir <- "{output_dir}"
 
     # Calculer la frustration
-    results <- calculate_frustration(PdbFile = pdb_file, ResultsDir = output_dir, Graphics = FALSE)
+    results <- calculate_frustration(PdbFile = pdb_file, Mode = "singleresidue", ResultsDir = output_dir, Graphics = FALSE)
 
     """
 
     # Pour chaque fichier PDB dans le répertoire
+    # TO DO make the frustration calculation in order for the files
     for pdb_file in os.listdir(PDB_directory):
         if pdb_file.endswith('.pdb'):
             full_path = os.path.join(PDB_directory, pdb_file)
@@ -194,6 +194,65 @@ def calculate_frustration(PDB_directory, output_directory):
                 if os.path.exists('temp_frustration.R'):
                     os.remove('temp_frustration.R')
 
+#5
+def dico_frustIndex(frustration_file):
+    """
+    Create a dictionary  with frustration indices from FrustratometeR output file.
+
+    Args:
+        frustration_file (str): Path to the frustration results file
+
+    Returns:
+        dict: {residue_key: FrstIndex} where residue_key is "AAresNum" (e.g. "M4")
+
+    Example output:
+        {'M4': 0.759, 'E5': -0.582, 'F6': 1.027, ...}
+    """
+    frustration_dict = {}
+
+    with open(frustration_file, 'r') as f:
+        # Skip header line if present
+        header = f.readline()
+
+        for line in f:
+            # Skip empty lines
+            if not line.strip():
+                continue
+
+            parts = line.split()
+
+            # Check we have enough columns (at least 8)
+            if len(parts) >= 8:
+                res_num = parts[0]  # Residue number (4, 5, 6...)
+                aa = parts[3]  # Amino acid (M, E, F...)
+                frst_index = float(parts[7])  # FrstIndex value
+
+                # Create key like "M4" and add to dictionary
+                key = f"{aa}{res_num}"
+                frustration_dict[key] = frst_index
+
+    return frustration_dict
+
+#6
+def dico_of_dico_frustIndex(frustration_directory):
+    """
+    this function take the full path of the directory were the frustration results files are
+    And for each result, buit the dico of the residues frsutrationIndex, and add this to a big dico
+    dico = { (monomer)1: {'M4': 0.759, ...} , 2:... , ... }
+    :param frustration_directory:
+    :return:
+    """
+    dico_monomers = {}
+    for directory in os.listdir(frustration_directory) :
+        doc_path = os.path.join(frustration_directory, directory, "FrustrationData")
+        for file in os.listdir(doc_path):
+            if file.endswith("pdb_singleresidue"):
+                full_path = os.path.join(doc_path, file)
+                print("Cnom du fichier :",os.path.basename(full_path))
+                dico_monomer = dico_frustIndex(full_path)
+                #print(dico)
+        break
+
 #when only a file given
 def main(pdb_file1):
     start_time = time.time()
@@ -219,7 +278,10 @@ def main(pdb_file1):
     save_each_monomer_as_pdb(monomers, results_pdb_dir, enc_type, enc_number)
 
     # 4. calculation of frustration
-    calculate_frustration(results_pdb_dir, results_frustration_dir)
+    #calculate_frustration(results_pdb_dir, results_frustration_dir)
+
+    #6
+    dico_of_dico_frustIndex(results_frustration_dir)
 
 
 
