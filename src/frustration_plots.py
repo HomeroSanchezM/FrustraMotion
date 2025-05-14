@@ -74,8 +74,6 @@ def load_pdb(pdb_file):
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure("encapsulin", pdb_file)
     return structure
-
-
 #3.
 def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type1 , enc_number1, enc_type2 = None ,enc_number2 = None ):
     """
@@ -136,7 +134,6 @@ def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type1 , enc_numbe
             io.set_structure(monomer)
             io.save(output_file)
             print(f"Monomer {i} save in {output_file}")
-
 #4 frustratometeR
 def calculate_frustration(PDB_directory, output_directory):
 
@@ -193,7 +190,6 @@ def calculate_frustration(PDB_directory, output_directory):
                 # Nettoyer le fichier temporaire
                 if os.path.exists('temp_frustration.R'):
                     os.remove('temp_frustration.R')
-
 #5
 def dico_frustIndex(frustration_file):
     """
@@ -232,7 +228,6 @@ def dico_frustIndex(frustration_file):
                 frustration_dict[key] = frst_index
 
     return frustration_dict
-
 #6
 def dico_of_dico_frustIndex(frustration_directory):
     """
@@ -256,6 +251,88 @@ def dico_of_dico_frustIndex(frustration_directory):
                 dico_monomers[number]= dico_monomer
 
     return dico_monomers
+
+#7. plot of all the frustration variation, have to be improved
+def plot_all_frustration_per_res (dico_monomers, enc_type , enc_number, plots_dir ) :
+    """
+    this function generate a plot of all the frustration lines for the 60 monomers of an encapsuline for a given frame.
+    :param dico_monomers: dico with the frustration info
+    :param enc_type: <TmEnc|MtEnc>
+    :param enc_number: number of the frame
+    :param plots_dir: the output directory
+    """
+
+    plt.figure(figsize=(25, 5))
+
+    # Get all residues (sorted numerically)
+    sample_monomer = next(iter(dico_monomers.values()))  # Prend un monomer quelconque
+    residues = sorted(sample_monomer.keys(), key=lambda x: int(''.join(filter(str.isdigit, x))))
+
+    # Create x-axis positions
+    x = np.arange(len(residues))
+
+    # Plot each monomer
+    for monomer_id, frustration_data in dico_monomers.items():
+        # Get frustration values in residue order
+        y = [frustration_data[res] for res in residues]
+        plt.plot(x, y,
+            marker='o',
+            markersize=0.1,
+            linestyle='-',
+            linewidth=0.5,
+            alpha=0.7,
+            label=f'Monomer {monomer_id}')
+
+    # Customize plot
+    plt.xticks(range(len(residues))[::3], residues[::3],
+               rotation=45, fontsize=8, ha='right')
+    #plt.xticks(x, residues, rotation=45, ha='right', fontsize=8)
+    plt.xlabel('Residue ')
+    plt.ylabel('Frustration Index')
+    plt.title('Frustration Profiles Across Monomers')
+    plt.grid(True, alpha=0.3)
+
+    # Legend outside the plot
+    #plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+
+    name_plot = f"frustration_per_res_{enc_type}_monomer_{enc_number}.png"
+    plot_path = os.path.join(plots_dir, name_plot)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+
+    print(f"Plot with standard deviation saved as {plot_path}")
+
+#8. plot mean frustration + std per residue
+#8.1. dico of mean frustration for each res
+def dico_mean_frustration (dico_monomers) :
+    """
+
+    :param dico_monomers: dico with the frustration info
+    :return:
+    """
+     # Initialize dictionary to store sum and count
+    residue_stats = {}
+
+    # First pass: collect sum and count for each residue
+    for monomer_data in dico_monomers.values():
+        for residue, frustration in monomer_data.items():
+            if residue not in residue_stats:
+                residue_stats[residue] = {'sum': 0.0, 'count': 0}
+            residue_stats[residue]['sum'] += frustration
+            residue_stats[residue]['count'] += 1
+
+    # Second pass: calculate mean for each residue
+    dico_mean = {}
+    for residue, stats in residue_stats.items():
+        dico_mean[residue] = stats['sum'] / stats['count']
+
+    return dico_mean
+
+        #print(dico_monomers[monomer]["M4"])
+
+
+
 
 #when only a file given
 def main(pdb_file1):
@@ -291,50 +368,12 @@ def main(pdb_file1):
     #print(dico_monomers)
 
 
-    #7 grafical view
-    #monomers_id = list(dico_monomers.keys())
-    #residues = list(dico_monomers[1].keys())
+    #7 grafical views
 
-    plt.figure(figsize=(25, 8))
+    #plot_all_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
 
-    # Get all residues (sorted numerically)
-    sample_monomer = next(iter(dico_monomers.values()))  # Prend un monomer quelconque
-    residues = sorted(sample_monomer.keys(), key=lambda x: int(''.join(filter(str.isdigit, x))))
-
-    # Create x-axis positions
-    x = np.arange(len(residues))
-
-    # Plot each monomer
-    for monomer_id, frustration_data in dico_monomers.items():
-        # Get frustration values in residue order
-        y = [frustration_data[res] for res in residues]
-        plt.plot(x, y,
-            marker='o',
-            markersize=2,
-            linestyle='-',
-            linewidth=0.01,
-            alpha=0.7,
-            label=f'Monomer {monomer_id}')
-
-    # Customize plot
-    plt.xticks(range(len(residues))[::3], residues[::3],
-               rotation=45, fontsize=8, ha='right')
-    #plt.xticks(x, residues, rotation=45, ha='right', fontsize=8)
-    plt.xlabel('Residue ')
-    plt.ylabel('Frustration Index')
-    plt.title('Frustration Profiles Across Monomers')
-    plt.grid(True, alpha=0.3)
-
-    # Legend outside the plot
-    #plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.tight_layout()
-
-    name_plot = f"frustration_per_res_{enc_type}_monomer_{enc_number}.png"
-    plot_path = os.path.join(plots_dir, name_plot)
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
-    plt.close()
-
-    print(f"Plot with standard deviation saved as {plot_path}")
+    #8.
+    dico_mean_frustration(dico_monomers)
 
 
     end_time = time.time()
