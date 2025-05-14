@@ -296,7 +296,7 @@ def plot_all_frustration_per_res (dico_monomers, enc_type , enc_number, plots_di
     #plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.tight_layout()
 
-    name_plot = f"frustration_per_res_{enc_type}_monomer_{enc_number}.png"
+    name_plot = f"frustration_per_res_{enc_type}_ALL_monomer_{enc_number}.png"
     plot_path = os.path.join(plots_dir, name_plot)
     plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
@@ -312,25 +312,80 @@ def dico_mean_frustration (dico_monomers) :
     :return:
     """
      # Initialize dictionary to store sum and count
-    residue_stats = {}
+    dico_mean = {}
 
     # First pass: collect sum and count for each residue
     for monomer_data in dico_monomers.values():
         for residue, frustration in monomer_data.items():
-            if residue not in residue_stats:
-                residue_stats[residue] = {'sum': 0.0, 'count': 0}
-            residue_stats[residue]['sum'] += frustration
-            residue_stats[residue]['count'] += 1
+            if residue not in dico_mean:
+                dico_mean[residue] = {'mean': 0.0, 'std': []}
+            dico_mean[residue]['mean'] += frustration
+            dico_mean[residue]['std'].append(frustration)
 
+    #print(dico_mean)
+    #print(residue_stats)
+    #print(len(dico_monomers))
     # Second pass: calculate mean for each residue
-    dico_mean = {}
-    for residue, stats in residue_stats.items():
-        dico_mean[residue] = stats['sum'] / stats['count']
+    dico_mean_and_std = {}
+    for residue, stats in dico_mean.items():
+        if residue not in dico_mean_and_std:
+                dico_mean_and_std[residue] = {'mean': 0.0, 'std': 0.0}
+        dico_mean_and_std[residue]['mean'] = stats['mean']/len(dico_monomers)
+        dico_mean_and_std[residue]['std'] = np.std(stats['std'])
+    return dico_mean_and_std
 
-    return dico_mean
 
-        #print(dico_monomers[monomer]["M4"])
+import matplotlib.pyplot as plt
+import numpy as np
 
+
+def plot_frustration_per_res(dico, enc_type , enc_number, plots_dir):
+    """
+    Plot mean frustration with standard deviation per residue.
+
+    Parameters:
+    dico (dict): Dictionary with residue IDs as keys and {'mean': float, 'std': float} as values.
+                 Example: {'M4': {'mean': -0.135, 'std': 0.668}, ...}
+    """
+    # Extract data from dictionary
+    residues = list(dico.keys())
+    means = [dico[res]['mean'] for res in residues]
+    stds = [dico[res]['std'] for res in residues]
+
+    # Create figure
+    plt.figure(figsize=(12, 6))
+
+    # Plot means with error bars for std
+    plt.errorbar(residues, means, yerr=stds, fmt='o', color='b',
+                 ecolor='r', capsize=5, capthick=2, label='Mean ± Std')
+
+    # Add horizontal line at y=0 for reference
+    plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.8)
+
+    # Customize plot
+    plt.title('Mean Frustration per Residue with Standard Deviation')
+    plt.xlabel('Residue')
+    plt.ylabel('Mean Frustration')
+    plt.xticks(rotation=45)
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.legend()
+
+    # Adjust layout to prevent label cutoff
+    plt.tight_layout()
+    name_plot = f"frustration_per_res_{enc_type}_monomer_{enc_number}.png"
+    plot_path = os.path.join(plots_dir, name_plot)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+
+
+
+
+
+# Example usage:
+# dico = {'M4': {'mean': -0.135, 'std': 0.668},
+#         'E5': {'mean': 0.547, 'std': 0.981},
+#         'F6': {'mean': 0.332, 'std': 0.397}}
+# plot_frustration_per_residue(dico)
 
 
 
@@ -373,7 +428,11 @@ def main(pdb_file1):
     #plot_all_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
 
     #8.
-    dico_mean_frustration(dico_monomers)
+    dico_mean = dico_mean_frustration(dico_monomers)
+    #print(dico_mean)
+
+    #9
+    plot_frustration_per_res(dico_mean, enc_type, enc_number, plots_dir)
 
 
     end_time = time.time()
