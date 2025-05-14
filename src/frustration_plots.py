@@ -335,43 +335,65 @@ def dico_mean_frustration (dico_monomers) :
     return dico_mean_and_std
 
 
-import matplotlib.pyplot as plt
-import numpy as np
-
-
-def plot_frustration_per_res(dico, enc_type , enc_number, plots_dir):
+def plot_frustration_per_res(dico, enc_type, enc_number, plots_dir):
     """
-    Plot mean frustration with standard deviation per residue.
+    Plot mean frustration with standard deviation per residue, connecting dots with lines.
+    Saves the plot as a PNG file in the specified directory.
 
     Parameters:
-    dico (dict): Dictionary with residue IDs as keys and {'mean': float, 'std': float} as values.
-                 Example: {'M4': {'mean': -0.135, 'std': 0.668}, ...}
+    - dico (dict): Dictionary with residue IDs as keys and {'mean': float, 'std': float} as values.
+                   Example: {'M4': {'mean': -0.135, 'std': 0.668}, ...}
+    - enc_type (str): Encounter type (e.g., "H1", "H2").
+    - enc_number (int or str): Encounter number or identifier.
+    - plots_dir (str): Directory path to save the plot.
     """
     # Extract data from dictionary
     residues = list(dico.keys())
     means = [dico[res]['mean'] for res in residues]
     stds = [dico[res]['std'] for res in residues]
 
-    # Create figure
-    plt.figure(figsize=(12, 6))
+    # Create a compact figure (smaller size)
+    plt.figure(figsize=(16, 6))
 
-    # Plot means with error bars for std
-    plt.errorbar(residues, means, yerr=stds, fmt='o', color='b',
-                 ecolor='r', capsize=5, capthick=2, label='Mean ± Std')
+    # Plot means with error bars for std and connect dots with lines
+    plt.errorbar(
+        range(len(residues)),  # Use numeric positions for better line connection
+        means,
+        yerr=stds,
+        fmt='-o',  # '-' connects dots, 'o' shows markers
+        color='b',
+        ecolor='r',
+        capsize=3,  # Smaller caps
+        capthick=1,  # Thinner caps
+        linewidth=0.5,  # Thinner connecting line
+        markersize=2,  # Smaller markers
+        label='Mean ± Std'
+    )
 
     # Add horizontal line at y=0 for reference
-    plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.8)
+    plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.5)
 
     # Customize plot
-    plt.title('Mean Frustration per Residue with Standard Deviation')
-    plt.xlabel('Residue')
-    plt.ylabel('Mean Frustration')
-    plt.xticks(rotation=45)
-    plt.grid(True, linestyle='--', alpha=0.6)
-    plt.legend()
+    plt.title(f'Mean Frustration per Residue ({enc_type}, Monomer {enc_number})', fontsize=10)
+    plt.xlabel('Residue', fontsize=9)
+    plt.ylabel('Mean Frustration', fontsize=9)
+
+    # Customize x-axis: Show every 3rd residue to avoid clutter
+    plt.xticks(
+        range(len(residues))[::3],
+        residues[::3],
+        rotation=45,
+        fontsize=7,
+        ha='right'
+    )
+
+    plt.grid(True, linestyle=':', alpha=0.5)  # Lighter grid
+    plt.legend(fontsize=8)
 
     # Adjust layout to prevent label cutoff
     plt.tight_layout()
+
+    # Save and close
     name_plot = f"frustration_per_res_{enc_type}_monomer_{enc_number}.png"
     plot_path = os.path.join(plots_dir, name_plot)
     plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
@@ -380,12 +402,6 @@ def plot_frustration_per_res(dico, enc_type , enc_number, plots_dir):
 
 
 
-
-# Example usage:
-# dico = {'M4': {'mean': -0.135, 'std': 0.668},
-#         'E5': {'mean': 0.547, 'std': 0.981},
-#         'F6': {'mean': 0.332, 'std': 0.397}}
-# plot_frustration_per_residue(dico)
 
 
 
@@ -425,7 +441,7 @@ def main(pdb_file1):
 
     #7 grafical views
 
-    #plot_all_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
+    plot_all_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
 
     #8.
     dico_mean = dico_mean_frustration(dico_monomers)
