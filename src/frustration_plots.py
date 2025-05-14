@@ -20,6 +20,9 @@ make the frustration calculation in order for the files
 '''
 This scripts take one PDB File containing multiples monomers (chains) and make a frustration study of the monomers using FrustratometeR 
 the results files are added to results/FRUSTRATION_<MTENC|TMENC>/<MTENC|TMENC>_CAPSIDS/FRUSTRATION_monomer_for_a_frame 
+A plot is add to the plots/frustration directory, with name of type 
+frustration_per_res_<TmEnc|MmEnc>_ALL_monomer_<(i)>.png   and 
+frustration_per_res_<TmEnc|MmEnc>_monomer_<(i)>.png
 Usage:
 
 python3 frustration_plots.py chemin/vers/fichier.pdb
@@ -75,11 +78,11 @@ def load_pdb(pdb_file):
     structure = parser.get_structure("encapsulin", pdb_file)
     return structure
 #3.
-def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type1 , enc_number1, enc_type2 = None ,enc_number2 = None ):
+def save_each_monomer_as_pdb(list_of_monomers, output_dir, enc_type1 , enc_number1, enc_type2 = None ,enc_number2 = None ):
     """
     Save each monomer in a file (atom number for 1 file is limited to 99999 by PDBIO)
     Args:
-        aligned_monomers: List of chain object (Monomers)
+        list_of_monomers: List of chain object (Monomers)
         output_dir
         enc_type: Type of encapsulin (MtEnc/TmEnc) have to be generalised
         enc_number: Number of the encapsulin file
@@ -87,8 +90,8 @@ def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type1 , enc_numbe
     """
     # Create the output directory
     os.makedirs(output_dir, exist_ok=True)
-    print(f"aligned monomere a {len(aligned_monomers)} monomers")
-    for i, monomer in enumerate(aligned_monomers, start=1):
+    print(f"aligned monomere a {len(list_of_monomers)} monomers")
+    for i, monomer in enumerate(list_of_monomers, start=1):
         if enc_type2 == None :
             # Create the structure
             structure = Structure.Structure(f"MONOMER_{i}")
@@ -422,6 +425,7 @@ def main(pdb_file1):
 
     #1.2 create the repository if it not exist
     os.makedirs(results_pdb_dir, exist_ok=True)
+    os.makedirs(results_frustration_dir, exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
 
     # 2. Charger les monomères

@@ -20,7 +20,7 @@ A plot is add to the plot directory, with name of type rmsf_with_std_per_frame_<
 The aligned PDB files are added to the result directory. 
 Usage:
 
-python3 structural_align_multiples_files.py path/to/directory/ number_of_wanted_monomer
+python3 structural_align_multiples_files.py path/to/directory/ number_of_the_wanted_monomer
 
 '''
 
