@@ -10,6 +10,7 @@ import re
 import gzip
 import shutil
 import time
+import subprocess
 
 
 
@@ -170,6 +171,237 @@ def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type, file_dict, 
 
 
 
+#4 frustratometeR
+def calculate_frustration(PDB_directory, output_directory):
+
+    """
+    this function call the R package FrustratometeR for the calculation of frustration.
+    :param PDB_directory: the directory of the pdb file used for the frustration calculation
+    :param output_directory: the directory to save the frustration results
+    """
+
+    # check if directories exists
+    if not os.path.isdir(PDB_directory):
+        raise ValueError(f"PDB directory not found: {PDB_directory}")
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
+
+    # the temp R sript
+    r_script = """
+    # FrustratometeR calculation
+    library(frustratometeR)
+
+    # Lire le fichier PDB
+    pdb_file <- "{pdb_file}"
+    output_dir <- "{output_dir}"
+
+    # Calculer la frustration
+    results <- calculate_frustration(PdbFile = pdb_file, Mode = "singleresidue", ResultsDir = output_dir, Graphics = FALSE)
+
+    """
+
+    # Pour chaque fichier PDB dans le répertoire
+    # TO DO make the frustration calculation in order for the files
+    for pdb_file in os.listdir(PDB_directory):
+        if pdb_file.endswith('.pdb'):
+            full_path = os.path.join(PDB_directory, pdb_file)
+
+            # Personnaliser le script R pour ce fichier
+            current_script = r_script.format(
+                pdb_file=full_path,
+                output_dir=output_directory
+            )
+            #print(current_script)
+            # Écrire le script temporaire
+            with open('temp_frustration.R', 'w') as f:
+                f.write(current_script)
+
+
+            # Exécuter Rscript
+            try:
+                subprocess.run(['Rscript', 'temp_frustration.R'], check=True)
+                print(f"Successfully processed {pdb_file}")
+            except subprocess.CalledProcessError as e:
+                print(f"Error processing {pdb_file}: {e}")
+            finally:
+                # Nettoyer le fichier temporaire
+                if os.path.exists('temp_frustration.R'):
+                    os.remove('temp_frustration.R')
+
+
+#5
+def dico_frustIndex(frustration_file):
+    """
+    Create a dictionary  with frustration indices from FrustratometeR output file.
+
+    Args:
+        frustration_file (str): Path to the frustration results file
+
+    Returns:
+        dict: {residue_key: FrstIndex} where residue_key is "AAresNum" (e.g. "M4")
+
+    Example output:
+        {'M4': 0.759, 'E5': -0.582, 'F6': 1.027, ...}
+    """
+    frustration_dict = {}
+
+    with open(frustration_file, 'r') as f:
+        # Skip header line if present
+        header = f.readline()
+
+        for line in f:
+            # Skip empty lines
+            if not line.strip():
+                continue
+
+            parts = line.split()
+
+            # Check we have enough columns (at least 8)
+            if len(parts) >= 8:
+                res_num = parts[0]  # Residue number (4, 5, 6...)
+                aa = parts[3]  # Amino acid (M, E, F...)
+                frst_index = float(parts[7])  # FrstIndex value
+
+                # Create key like "M4" and add to dictionary
+                key = f"{aa}{res_num}"
+                frustration_dict[key] = frst_index
+
+    return frustration_dict
+
+
+import os
+import re
+
+
+def dico_of_dico_frustIndex(frustration_directory):
+    """
+    This function takes the full path of the directory where the frustration results files are
+    and for each result, builds a dictionary of the residues frustrationIndex, adding it to a main dictionary.
+    Extracts the frame numberthat is before "monomer" in filenames (e.g., 0 from "TmEnc0_monomer1.pdb" or "MtEnc0_monomer1.pdb")
+
+    :param frustration_directory: Path to directory containing frustration results
+    :return: Dictionary {frame_number: {'M4': 0.759, ...}, ...}
+    """
+    dico_frames = {}
+
+    for directory in os.listdir(frustration_directory):
+        doc_path = os.path.join(frustration_directory, directory, "FrustrationData")
+
+        for file in os.listdir(doc_path):
+            if file.endswith("pdb_singleresidue"):
+                full_path = os.path.join(doc_path, file)
+                name_file = os.path.basename(full_path)
+
+                # regex work with both TmEnc and MtEnc prefixes
+                match = re.search(r'(?:Tm|Mt)Enc(\d+)_monomer', name_file)
+                if match:
+                    frame_number = int(match.group(1))
+                    dico_monomer = dico_frustIndex(full_path)
+                    dico_frames[frame_number] = dico_monomer
+                else:
+                    print(f"Warning: Could not parse encounter number from filename: {name_file}")
+
+    return dico_frames
+
+
+#8. plot mean frustration + std per residue
+#8.1. dico of mean frustration for each res
+def dico_mean_frustration (dico_monomers) :
+    """
+
+    :param dico_monomers: dico with the frustration info
+    :return:
+    """
+     # Initialize dictionary to store sum and count
+    dico_mean = {}
+
+    # First pass: collect sum and count for each residue
+    for monomer_data in dico_monomers.values():
+        for residue, frustration in monomer_data.items():
+            if residue not in dico_mean:
+                dico_mean[residue] = {'mean': 0.0, 'std': []}
+            dico_mean[residue]['mean'] += frustration
+            dico_mean[residue]['std'].append(frustration)
+
+    #print(dico_mean)
+    #print(residue_stats)
+    #print(len(dico_monomers))
+    # Second pass: calculate mean for each residue
+    dico_mean_and_std = {}
+    for residue, stats in dico_mean.items():
+        if residue not in dico_mean_and_std:
+                dico_mean_and_std[residue] = {'mean': 0.0, 'std': 0.0}
+        dico_mean_and_std[residue]['mean'] = stats['mean']/len(dico_monomers)
+        dico_mean_and_std[residue]['std'] = np.std(stats['std'])
+    return dico_mean_and_std
+
+
+def plot_frustration_per_res(dico, enc_type, monomer_number, plots_dir):
+    """
+    Plot mean frustration with standard deviation per residue, connecting dots with lines.
+    Saves the plot as a PNG file in the specified directory.
+
+    Parameters:
+    - dico (dict): Dictionary with residue IDs as keys and {'mean': float, 'std': float} as values.
+                   Example: {'M4': {'mean': -0.135, 'std': 0.668}, ...}
+    - enc_type (str): Encounter type (e.g., "H1", "H2").
+    - enc_number (int or str): Encounter number or identifier.
+    - plots_dir (str): Directory path to save the plot.
+    """
+    # Extract data from dictionary
+    residues = list(dico.keys())
+    means = [dico[res]['mean'] for res in residues]
+    stds = [dico[res]['std'] for res in residues]
+
+    # Create a compact figure (smaller size)
+    plt.figure(figsize=(16, 6))
+
+    # Plot means with error bars for std and connect dots with lines
+    plt.errorbar(
+        range(len(residues)),  # Use numeric positions for better line connection
+        means,
+        yerr=stds,
+        fmt='-o',  # '-' connects dots, 'o' shows markers
+        color='b',
+        ecolor='r',
+        capsize=3,  # Smaller caps
+        capthick=1,  # Thinner caps
+        linewidth=0.5,  # Thinner connecting line
+        markersize=2,  # Smaller markers
+        label='Mean ± Std'
+    )
+
+    # Add horizontal line at y=0 for reference
+    plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.5)
+
+    # Customize plot
+    plt.title(f'Mean Frustration per Residue ({enc_type}, Monomer {monomer_number})', fontsize=10)
+    plt.xlabel('Residue', fontsize=9)
+    plt.ylabel('Mean Frustration', fontsize=9)
+
+    # Customize x-axis: Show every 3rd residue to avoid clutter
+    plt.xticks(
+        range(len(residues))[::3],
+        residues[::3],
+        rotation=45,
+        fontsize=7,
+        ha='right'
+    )
+
+    plt.grid(True, linestyle=':', alpha=0.5)  # Lighter grid
+    plt.legend(fontsize=8)
+
+    # Adjust layout to prevent label cutoff
+    plt.tight_layout()
+
+    # Save and close
+    name_plot = f"frustration_per_frame_{enc_type}_monomer_{monomer_number}.png"
+    plot_path = os.path.join(plots_dir, name_plot)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+
+
+
 def main(pdb_directory, monomer_number):
     start_time = time.time()
 
@@ -198,11 +430,32 @@ def main(pdb_directory, monomer_number):
 
     #2
     monomers = load_monomers(files_dict,chain_dict, monomer_number)
-    print(f"Loaded {len(monomers)} monomers")
+    #print(f"Loaded {len(monomers)} monomers")
 
 
-    # 4. create aligned PDB files
+    # 3. create aligned PDB files
     save_each_monomer_as_pdb(monomers, results_pdb_dir, enc_type, files_dict, monomer_number)
+
+    # 4. calculation of frustration
+    calculate_frustration(results_pdb_dir, results_frustration_dir)
+
+    #6
+    dico_monomers = dico_of_dico_frustIndex(results_frustration_dir)
+    #print(dico_monomers)
+
+
+    #7 grafical views
+
+    #8.
+    dico_mean = dico_mean_frustration(dico_monomers)
+    #print(dico_mean)
+
+    #9
+    plot_frustration_per_res(dico_mean, enc_type, monomer_number, plots_dir)
+
+
+
+
 
     end_time = time.time()
     execution_time = end_time - start_time

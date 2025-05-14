@@ -377,7 +377,7 @@ def plot_frustration_per_res(dico, enc_type, enc_number, plots_dir):
     plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.5)
 
     # Customize plot
-    plt.title(f'Mean Frustration per Residue ({enc_type}, Monomer {enc_number})', fontsize=10)
+    plt.title(f'Mean Frustration per Residue ({enc_type}, frame {enc_number})', fontsize=10)
     plt.xlabel('Residue', fontsize=9)
     plt.ylabel('Mean Frustration', fontsize=9)
 
@@ -436,7 +436,7 @@ def main(pdb_file1):
     save_each_monomer_as_pdb(monomers, results_pdb_dir, enc_type, enc_number)
 
     # 4. calculation of frustration
-    #calculate_frustration(results_pdb_dir, results_frustration_dir)
+    calculate_frustration(results_pdb_dir, results_frustration_dir)
 
     #6
     dico_monomers = dico_of_dico_frustIndex(results_frustration_dir)
