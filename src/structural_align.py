@@ -376,7 +376,7 @@ def main(pdb_file1):
     plt.legend([f'RMSF (#res={len(residues)} , #monomeres={len(monomers)} )'], fontsize=9)
     plt.tight_layout()
 
-    name_plot = f"rmsf_with_std_per_res_{enc_type}_monomer_{enc_number}.png"
+    name_plot = f"rmsf_with_std_per_res_{enc_type}_frame_{enc_number}.png"
     plot_path = os.path.join(plots_dir, name_plot)
     plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
