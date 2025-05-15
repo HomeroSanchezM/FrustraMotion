@@ -423,7 +423,7 @@ def main2(pdb_file1, pdb_file2):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2 and len(sys.argv) != 3:
-        print("Usage: python3 analyze_encapsulin.py path/to/encapsulin.pdb \n or python3 structural_align.py chemin/vers/1erfichier.pdb parser_pdb.py chemin/vers/2emefichier.pdb")
+        print("Usage: python3 structural_align.py path/to/encapsulin.pdb \n or python3 structural_align.py path/to/encapsulin1.pdb path/to/encapsulin2.pdb")
         sys.exit(1)
     elif len(sys.argv) ==2:
         try:
