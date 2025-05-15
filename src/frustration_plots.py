@@ -660,7 +660,56 @@ def plot_frustration_boxplots(dico_list, enc_type, enc_number, plots_dir):
     plt.close()
 
 
+def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1, enc_type2, enc_number2, plots_dir):
+    """
+    Create a scatter plot comparing mean frustration values between two conditions.
 
+    Parameters:
+    - dico_mean1: {'M4': {'mean': -0.135, 'std': 0.668}, ...} for first condition
+    - dico_mean2: Same structure for second condition
+    - enc_type1, enc_number1: Identifier for first condition
+    - enc_type2, enc_number2: Identifier for second condition
+    - plots_dir: Directory to save the plot
+    """
+    # Extract common residues
+    #common_residues = sorted(set(dico_mean1.keys()) & set(dico_mean2.keys()))
+    #print(dico_mean1.keys())
+    #print(dico_mean2.keys())
+    #print(common_residues)
+    # Prepare data
+    x_vals = [dico_mean2[res]['mean'] for res in dico_mean2.keys()]
+    y_vals = [dico_mean1[res]['mean'] for res in dico_mean1.keys()]
+    #print(x_vals)
+    #print(y_vals)
+
+    # Create figure
+    plt.figure(figsize=(8, 8))
+
+    # Create scatter plot
+    plt.scatter(x_vals, y_vals, color='blue', alpha=0.6, s=50)
+
+    # Add reference lines
+    plt.axhline(0, color='gray', linestyle='--', linewidth=0.8)
+    plt.axvline(0, color='gray', linestyle='--', linewidth=0.8)
+
+    # Add identity line
+    max_val = max(max(np.abs(x_vals)), max(np.abs(y_vals))) * 1.1
+    plt.plot([-max_val, max_val], [-max_val, max_val], 'r--', alpha=0.5)
+
+    # Customize plot
+    plt.title(f'Mean Frustration Comparison\n{enc_type1} {enc_number1} vs {enc_type2} {enc_number2}')
+    plt.xlabel(f'Mean Frustration ({enc_type2} {enc_number2})')
+    plt.ylabel(f'Mean Frustration ({enc_type1} {enc_number1})')
+    plt.grid(True, linestyle='--', alpha=0.3)
+
+    # Equal aspect ratio
+    plt.gca().set_aspect('equal', adjustable='box')
+
+    # Save plot
+    name_plot = f"scatter_frustration_{enc_type1}_{enc_number1}_vs_{enc_type2}_{enc_number2}.png"
+    plot_path = os.path.join(plots_dir, name_plot)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    plt.close()
 
 
 
@@ -721,13 +770,88 @@ def main(pdb_file1):
     execution_time = end_time - start_time
     print(f"Temps d'exécution: {execution_time:.2f} secondes")
 
+
+#when 2 files given in parameters
+def main2(pdb_file1, pdb_file2):
+
+    start_time = time.time()
+
+    # 1. Extract the type (MtEnc/TmEnc) and number (t) from the filenames
+    enc_type1, enc_number1 = extract_info_from_filename(pdb_file1)
+    enc_type2, enc_number2 = extract_info_from_filename(pdb_file2)
+
+    #1.1. create the output directories paths
+
+    frustration_dir1 = f"FRUSTRATION_{enc_type1.upper()}"
+    capsids_dir1 = f"{enc_type1.upper()}_CAPSIDS"
+    monomer_dir = "FRUSTRATION_monomer_for_a_frame"
+    results_pdb_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_monomers")
+    results_frustration_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_frustration")
+
+    frustration_dir2 = f"FRUSTRATION_{enc_type2.upper()}"
+    capsids_dir2 = f"{enc_type2.upper()}_CAPSIDS"
+    monomer_dir = "FRUSTRATION_monomer_for_a_frame"
+    results_pdb_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_monomers")
+    results_frustration_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_frustration")
+
+    plots_dir = os.path.join("../plots", "COMMON", "frustration")
+
+    #1.2 create the repository if it not exist
+    os.makedirs(results_pdb_dir1, exist_ok=True)
+    os.makedirs(results_frustration_dir1, exist_ok=True)
+    os.makedirs(results_pdb_dir2, exist_ok=True)
+    os.makedirs(results_frustration_dir2, exist_ok=True)
+
+    os.makedirs(plots_dir, exist_ok=True)
+
+    # 2. Charger les monomères
+    monomers1 = load_monomers(pdb_file1)
+    print(f"Loaded {len(monomers1)} monomers")
+
+    monomers2 = load_monomers(pdb_file2)
+    print(f"Loaded {len(monomers2)} monomers")
+
+
+     # 3. create PDB files
+    save_each_monomer_as_pdb(monomers1, results_pdb_dir1, enc_type1, enc_number1)
+    save_each_monomer_as_pdb(monomers2, results_pdb_dir2, enc_type2, enc_number2)
+
+    # 4. calculation of frustration
+    #calculate_frustration(results_pdb_dir1, results_frustration_dir1)
+    #calculate_frustration(results_pdb_dir2, results_frustration_dir2)
+
+    #6
+    dico_monomers1 = dico_of_dico_frustIndex(results_frustration_dir1)
+    dico_monomers2 = dico_of_dico_frustIndex(results_frustration_dir2)
+
+    #8.
+    dico_mean1 = dico_mean_frustration(dico_monomers1)
+    dico_mean2 = dico_mean_frustration(dico_monomers2)
+
+
+   # graphical view, scatter plot
+    plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1, enc_type2, enc_number2, plots_dir)
+
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Temps d'exécution: {execution_time:.2f} secondes")
+
 if __name__ == "__main__":
-    if len(sys.argv) != 2 :
-        print("Usage: python analyze_encapsulin.py path/to/encapsulin.pdb number_of_wanted_monomer")
+    if len(sys.argv) != 2 and len(sys.argv) != 3:
+        print("Usage: python3 frustration_plots.py path/to/encapsulin.pdb \n or python3 frustration_plots.py path/to/encapsulin1.pdb path/to/encapsulin2.pdb")
         sys.exit(1)
     elif len(sys.argv) ==2:
         try:
             main(sys.argv[1])
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            sys.exit(1)
+    elif len(sys.argv) ==3:
+        try:
+            main2(sys.argv[1], sys.argv[2])
         except ValueError as e:
             print(f"Error: {e}")
             sys.exit(1)
