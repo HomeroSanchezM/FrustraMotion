@@ -9,7 +9,11 @@ import os
 import re
 import time
 import subprocess
+import matplotlib.patches as mpatches
+import seaborn as sns
+import pandas as pd
 
+#from FrustraMotion.src.parser_pdb import return_sequence_3_letter_format
 
 '''
 TO DO : 
@@ -25,7 +29,11 @@ frustration_per_res_<TmEnc|MmEnc>_ALL_monomer_<(i)>.png   and
 frustration_per_res_<TmEnc|MmEnc>_monomer_<(i)>.png
 Usage:
 
-python3 frustration_plots.py chemin/vers/fichier.pdb
+python3 frustration_plots.py path/to/file.pdb
+
+If 2 file given, frustration will be calculated for the monomers of the 2 files and a scatter-plot of the frsutration means for each residue will be made
+
+python3 frustration_plots.py path/to/file1.pdb path/to/file2.pdb 
 
 
 '''
@@ -265,7 +273,7 @@ def plot_all_frustration_per_res (dico_monomers, enc_type , enc_number, plots_di
     :param plots_dir: the output directory
     """
 
-    plt.figure(figsize=(25, 5))
+    plt.figure(figsize=(12, 8))
 
     # Get all residues (sorted numerically)
     sample_monomer = next(iter(dico_monomers.values()))  # Prend un monomer quelconque
@@ -280,9 +288,9 @@ def plot_all_frustration_per_res (dico_monomers, enc_type , enc_number, plots_di
         y = [frustration_data[res] for res in residues]
         plt.plot(x, y,
             marker='o',
-            markersize=0.1,
+            markersize=0.5,
             linestyle='-',
-            linewidth=0.5,
+            linewidth=0.2,
             alpha=0.7,
             label=f'Monomer {monomer_id}')
 
@@ -310,7 +318,8 @@ def plot_all_frustration_per_res (dico_monomers, enc_type , enc_number, plots_di
 #8.1. dico of mean frustration for each res
 def dico_mean_frustration (dico_monomers) :
     """
-
+    create a dictionary with residue IDs as keys and {'mean': float, 'std': float} as values.
+                   Example: {'M4': {'mean': -0.135, 'std': 0.668}, ...}
     :param dico_monomers: dico with the frustration info
     :return:
     """
@@ -337,6 +346,24 @@ def dico_mean_frustration (dico_monomers) :
         dico_mean_and_std[residue]['std'] = np.std(stats['std'])
     return dico_mean_and_std
 
+def dico_list_frustration (dico_monomers) :
+    """
+    create a dictionary with residue IDs as keys and a list of the frustration indexes as values.
+                   Example: {'M4': [0.51 , 0.67, ... ], ...}
+    :param dico_monomers:  dico_monomers = { (monomer)1: {'M4': 0.759, ...} , 2:... , ... }
+    :return:
+    """
+     # Initialize dictionary to store sum and count
+    dico_list = {}
+
+    # First pass: collect sum and count for each residue
+    for monomer_data in dico_monomers.values():
+        for residue, frustration in monomer_data.items():
+            if residue not in dico_list:
+                dico_list[residue] =  []
+            dico_list[residue].append(frustration)
+
+    return dico_list
 
 def plot_frustration_per_res(dico, enc_type, enc_number, plots_dir):
     """
@@ -404,6 +431,235 @@ def plot_frustration_per_res(dico, enc_type, enc_number, plots_dir):
 
 
 
+def plot_min_and_max_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir):
+        """
+        Generate a plot showing min and max frustration values per residue as points.
+
+        :param dico_monomers: Dictionary with frustration info {monomer_num: {'M4': 0.759, ...}, ...}
+        :param enc_type: Encounter type identifier
+        :param enc_number: Encounter number
+        :param plots_dir: Directory to save the plot
+        """
+        # Initialize dictionary to store min and max values
+        dico_min_max = {}
+
+        # First pass: find min and max for each residue across all monomers
+        for monomer_data in dico_monomers.values():
+            for residue, frustration in monomer_data.items():
+                if residue not in dico_min_max:
+                    dico_min_max[residue] = {'min': frustration, 'max': frustration}
+                else:
+                    if frustration > dico_min_max[residue]['max']:
+                        dico_min_max[residue]['max'] = frustration
+                    if frustration < dico_min_max[residue]['min']:
+                        dico_min_max[residue]['min'] = frustration
+
+        residues = list(dico_min_max.keys())
+        min_vals = [dico_min_max[res]['min'] for res in residues]
+        max_vals = [dico_min_max[res]['max'] for res in residues]
+
+        # Create figure
+        plt.figure(figsize=(12, 6))
+
+        # Plot min values as points
+        for i, val in enumerate(min_vals):
+            color = 'green' if val < 0 else 'red'
+            plt.plot(i, val, 'o', color=color, markersize=6, label='Min' if i == 0 else "")
+
+        # Plot max values as points
+        for i, val in enumerate(max_vals):
+            color = 'green' if val < 0 else 'red'
+            plt.plot(i, val, 's', color=color, markersize=6, label='Max' if i == 0 else "")
+
+        # Add horizontal line at y=0
+        plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.8)
+
+        # Customize plot
+        plt.title(f'Min and Max Frustration Values per Residue ({enc_type}, Monomer {enc_number})')
+        plt.xlabel('Residue')
+        plt.ylabel('Frustration Value')
+
+        # Customize x-axis: Show every 3rd residue to avoid clutter
+        plt.xticks(
+            range(len(residues))[::3],
+            residues[::3],
+            rotation=45,
+            fontsize=8,
+            ha='right'
+        )
+
+        # Create custom legend
+        green_patch = mpatches.Patch(color='green', label='Negative frustration')
+        red_patch = mpatches.Patch(color='red', label='Positive frustration')
+        plt.legend(handles=[
+            green_patch,
+            red_patch,
+            plt.Line2D([0], [0], marker='o', color='w', label='Min',
+                       markersize=8, markerfacecolor='black'),
+            plt.Line2D([0], [0], marker='s', color='w', label='Max',
+                       markersize=8, markerfacecolor='black')
+        ])
+
+        plt.grid(True, linestyle=':', alpha=0.6)
+        plt.tight_layout()
+
+        # Save and close
+        name_plot = f"frustration_min_max_per_res_{enc_type}_monomer_{enc_number}.png"
+        plot_path = os.path.join(plots_dir, name_plot)
+        plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
+
+    #print(dico_min_max)
+    #return dico_min_max
+
+
+
+
+def plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir):
+    """
+    Generate a plot showing vertical bars from min to max frustration values per residue.
+
+    :param dico_monomers: Dictionary with frustration info {monomer_num: {'M4': 0.759, ...}, ...}
+    :param enc_type: Encounter type identifier
+    :param enc_number: Encounter number
+    :param plots_dir: Directory to save the plot
+    """
+    # Initialize dictionary to store min and max values
+    dico_min_max = {}
+
+    # Find min and max for each residue across all monomers
+    for monomer_data in dico_monomers.values():
+        for residue, frustration in monomer_data.items():
+            if residue not in dico_min_max:
+                dico_min_max[residue] = {'min': frustration, 'max': frustration}
+            else:
+                if frustration > dico_min_max[residue]['max']:
+                    dico_min_max[residue]['max'] = frustration
+                if frustration < dico_min_max[residue]['min']:
+                    dico_min_max[residue]['min'] = frustration
+
+    residues = list(dico_min_max.keys())
+    min_vals = [dico_min_max[res]['min'] for res in residues]
+    max_vals = [dico_min_max[res]['max'] for res in residues]
+
+    # Create figure
+    plt.figure(figsize=(12, 6))
+
+    # Plot vertical bars for each residue
+    for i, (res, vmin, vmax) in enumerate(zip(residues, min_vals, max_vals)):
+        # Determine color based on values
+        if vmax <= 0:
+            color = 'green'  # Both min and max are negative
+        elif vmin >= 0:
+            color = 'red'  # Both min and max are positive
+        else:
+            color = 'gold'  # Spanning both negative and positive
+
+        # Draw vertical line from min to max
+        plt.vlines(x=i, ymin=vmin, ymax=vmax,
+                   colors=color, linewidth=2, alpha=0.7)
+
+        # Add small markers for min and max points
+        plt.plot(i, vmin, 'o', color='black', markersize=3)
+        plt.plot(i, vmax, 'o', color='black', markersize=3)
+
+    # Add horizontal line at y=0
+    plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.8)
+
+    # Customize plot
+    plt.title(f'Frustration Range per Residue ({enc_type}, Monomer {enc_number})')
+    plt.xlabel('Residue')
+    plt.ylabel('Frustration Value')
+
+    # Customize x-axis
+    plt.xticks(
+        range(len(residues))[::3],
+        residues[::3],
+        rotation=45,
+        fontsize=8,
+        ha='right'
+    )
+
+    # Create custom legend
+    green_patch = mpatches.Patch(color='green', label='Negative frustration', alpha=0.7)
+    red_patch = mpatches.Patch(color='red', label='Positive frustration', alpha=0.7)
+    gold_patch = mpatches.Patch(color='gold', label='Mixed frustration', alpha=0.7)
+    plt.legend(handles=[green_patch, red_patch, gold_patch])
+
+    plt.grid(True, linestyle=':', alpha=0.4)
+    plt.tight_layout()
+
+    # Save plot
+    name_plot = f"frustration_range_per_res_{enc_type}_monomer_{enc_number}.png"
+    plot_path = os.path.join(plots_dir, name_plot)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+
+
+
+
+def plot_frustration_boxplots(dico_list, enc_type, enc_number, plots_dir):
+    """
+    Generate boxplots of frustration values per residue from a dictionary of lists.
+    Shows only boxplots without individual data points.
+
+    Parameters:
+    - dico_list: Dictionary with residue IDs as keys and lists of frustration values
+                Example: {'M4': [0.51, 0.67, ...], ...}
+    - enc_type: Encounter type identifier
+    - enc_number: Encounter number
+    - plots_dir: Directory to save the plot
+    """
+    # Convert dictionary to DataFrame for easier plotting
+    df = pd.DataFrame.from_dict(dico_list, orient='index').T
+
+    # Melt the DataFrame for seaborn compatibility
+    df_melted = df.melt(var_name='Residue', value_name='Frustration')
+
+    # Create figure
+    plt.figure(figsize=(14, 7))
+
+    # Create boxplot with Seaborn (showing only boxes)
+    sns.boxplot(
+        data=df_melted,
+        x='Residue',
+        y='Frustration',
+        #palette='vlag',  # Red-white-blue diverging palette
+        showfliers=True,  # Hide outliers (since we don't want individual points)
+        width=0.6,
+        linewidth=1.5,
+        fliersize=0  # Ensure no outlier markers are shown
+    )
+
+    # Reference line at y=0
+    plt.axhline(0, color='gray', linestyle='--', linewidth=1, alpha=0.7)
+
+    # Customize plot
+    plt.title(f'Frustration Distribution per Residue ({enc_type}, Monomer {enc_number})', pad=20, fontsize=14)
+    plt.xlabel('Residue', labelpad=10)
+    plt.ylabel('Frustration Index', labelpad=10)
+
+    # Rotate x-axis labels and adjust font
+    plt.xticks(
+        rotation=45,
+        ha='right',
+        fontsize=10
+    )
+
+    # Improve y-axis
+    plt.yticks(fontsize=10)
+    plt.grid(axis='y', alpha=0.3)
+
+    # Adjust layout
+    plt.tight_layout()
+
+    # Save plot
+    name_plot = f"frustration_boxplot_per_res_{enc_type}_monomer_{enc_number}.png"
+    plot_path = os.path.join(plots_dir, name_plot)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+
+
 
 
 
@@ -436,7 +692,7 @@ def main(pdb_file1):
     save_each_monomer_as_pdb(monomers, results_pdb_dir, enc_type, enc_number)
 
     # 4. calculation of frustration
-    calculate_frustration(results_pdb_dir, results_frustration_dir)
+    #calculate_frustration(results_pdb_dir, results_frustration_dir)
 
     #6
     dico_monomers = dico_of_dico_frustIndex(results_frustration_dir)
@@ -454,6 +710,12 @@ def main(pdb_file1):
     #9
     plot_frustration_per_res(dico_mean, enc_type, enc_number, plots_dir)
 
+    #10
+    #plot_min_and_max_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
+    plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir)
+
+    dico_list = dico_list_frustration(dico_monomers)
+    plot_frustration_boxplots(dico_list, enc_type, enc_number, plots_dir)
 
     end_time = time.time()
     execution_time = end_time - start_time
