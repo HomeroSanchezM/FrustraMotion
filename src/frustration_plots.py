@@ -520,8 +520,8 @@ def plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir
     Generate a plot showing vertical bars from min to max frustration values per residue.
 
     :param dico_monomers: Dictionary with frustration info {monomer_num: {'M4': 0.759, ...}, ...}
-    :param enc_type: Encounter type identifier
-    :param enc_number: Encounter number
+    :param enc_type: Encapsuline type identifier
+    :param enc_number: frame number
     :param plots_dir: Directory to save the plot
     """
     # Initialize dictionary to store min and max values
@@ -543,7 +543,7 @@ def plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir
     max_vals = [dico_min_max[res]['max'] for res in residues]
 
     # Create figure
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(16, 6))
 
     # Plot vertical bars for each residue
     for i, (res, vmin, vmax) in enumerate(zip(residues, min_vals, max_vals)):
@@ -567,7 +567,7 @@ def plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir
     plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.8)
 
     # Customize plot
-    plt.title(f'Frustration Range per Residue ({enc_type}, Monomer {enc_number})')
+    plt.title(f'Frustration Range per Residue ({enc_type}, frame {enc_number})')
     plt.xlabel('Residue')
     plt.ylabel('Frustration Value')
 
@@ -590,7 +590,7 @@ def plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir
     plt.tight_layout()
 
     # Save plot
-    name_plot = f"frustration_range_per_res_{enc_type}_monomer_{enc_number}.png"
+    name_plot = f"frustration_range_per_res_{enc_type}_frame_{enc_number}.png"
     plot_path = os.path.join(plots_dir, name_plot)
     plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
@@ -697,7 +697,7 @@ def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1
     plt.plot([-max_val, max_val], [-max_val, max_val], 'r--', alpha=0.5)
 
     # Customize plot
-    plt.title(f'Mean Frustration Comparison\n{enc_type1} {enc_number1} vs {enc_type2} {enc_number2}')
+    plt.title(f'Mean monomers frustration comparison\n{enc_type1} frame {enc_number1} vs {enc_type2} frame {enc_number2}')
     plt.xlabel(f'Mean Frustration ({enc_type2} {enc_number2})')
     plt.ylabel(f'Mean Frustration ({enc_type1} {enc_number1})')
     plt.grid(True, linestyle='--', alpha=0.3)
@@ -706,7 +706,7 @@ def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1
     plt.gca().set_aspect('equal', adjustable='box')
 
     # Save plot
-    name_plot = f"scatter_frustration_{enc_type1}_{enc_number1}_vs_{enc_type2}_{enc_number2}.png"
+    name_plot = f"scatter_frustration_per_res_{enc_type1}_frame_{enc_number1}_vs_{enc_type2}_frame_{enc_number2}.png"
     plot_path = os.path.join(plots_dir, name_plot)
     plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     plt.close()
@@ -741,7 +741,7 @@ def main(pdb_file1):
     save_each_monomer_as_pdb(monomers, results_pdb_dir, enc_type, enc_number)
 
     # 4. calculation of frustration
-    #calculate_frustration(results_pdb_dir, results_frustration_dir)
+    calculate_frustration(results_pdb_dir, results_frustration_dir)
 
     #6
     dico_monomers = dico_of_dico_frustIndex(results_frustration_dir)
@@ -817,8 +817,8 @@ def main2(pdb_file1, pdb_file2):
     save_each_monomer_as_pdb(monomers2, results_pdb_dir2, enc_type2, enc_number2)
 
     # 4. calculation of frustration
-    #calculate_frustration(results_pdb_dir1, results_frustration_dir1)
-    #calculate_frustration(results_pdb_dir2, results_frustration_dir2)
+    calculate_frustration(results_pdb_dir1, results_frustration_dir1)
+    calculate_frustration(results_pdb_dir2, results_frustration_dir2)
 
     #6
     dico_monomers1 = dico_of_dico_frustIndex(results_frustration_dir1)

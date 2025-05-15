@@ -11,6 +11,7 @@ import gzip
 import shutil
 import time
 import subprocess
+import matplotlib.patches as mpatches
 
 
 
@@ -22,6 +23,10 @@ A plot is add to the plots/frustration directory, with name of type rmsf_with_st
 Usage:
 
 python3 frustration_plots_multiples_files.py path/to/directory/ number_of_the_wanted_monomer
+
+If 2 file given, frustration will be calculated for the monomers of the 2 files and a scatter-plot of the frsutration means for each residue will be made
+
+python3 frustration_plots_multiples_files.py path/to/file1.pdb path/to/file2.pdb 
 
 '''
 # delete non essential warning
@@ -336,7 +341,8 @@ def dico_mean_frustration (dico_monomers) :
     return dico_mean_and_std
 
 
-def plot_frustration_per_res(dico, enc_type, monomer_number, plots_dir):
+
+def plot_frustration_per_res(dico, enc_type, monomer_number, plots_dir, file_dic):
     """
     Plot mean frustration with standard deviation per residue, connecting dots with lines.
     Saves the plot as a PNG file in the specified directory.
@@ -375,7 +381,7 @@ def plot_frustration_per_res(dico, enc_type, monomer_number, plots_dir):
     plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.5)
 
     # Customize plot
-    plt.title(f'Mean Frustration per Residue ({enc_type}, Monomer {monomer_number})', fontsize=10)
+    plt.title(f'Mean Frustration per Residue ({enc_type}, Monomer {monomer_number}) for all the {len(file_dic)} frames', fontsize=10)
     plt.xlabel('Residue', fontsize=9)
     plt.ylabel('Mean Frustration', fontsize=9)
 
@@ -400,6 +406,136 @@ def plot_frustration_per_res(dico, enc_type, monomer_number, plots_dir):
     plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
 
+def plot_min_max_frustration_bars(dico_monomers, enc_type, monomer_number, plots_dir, file_dic):
+    """
+    Generate a plot showing vertical bars from min to max frustration values per residue.
+
+    :param dico_monomers: Dictionary with frustration info {monomer_num: {'M4': 0.759, ...}, ...}
+    :param enc_type: Encapsuline type identifier
+    :param plots_dir: Directory to save the plot
+    """
+    # Initialize dictionary to store min and max values
+    dico_min_max = {}
+
+    # Find min and max for each residue across all monomers
+    for monomer_data in dico_monomers.values():
+        for residue, frustration in monomer_data.items():
+            if residue not in dico_min_max:
+                dico_min_max[residue] = {'min': frustration, 'max': frustration}
+            else:
+                if frustration > dico_min_max[residue]['max']:
+                    dico_min_max[residue]['max'] = frustration
+                if frustration < dico_min_max[residue]['min']:
+                    dico_min_max[residue]['min'] = frustration
+
+    residues = list(dico_min_max.keys())
+    min_vals = [dico_min_max[res]['min'] for res in residues]
+    max_vals = [dico_min_max[res]['max'] for res in residues]
+
+    # Create figure
+    plt.figure(figsize=(16, 6))
+
+    # Plot vertical bars for each residue
+    for i, (res, vmin, vmax) in enumerate(zip(residues, min_vals, max_vals)):
+        # Determine color based on values
+        if vmax <= 0:
+            color = 'green'  # Both min and max are negative
+        elif vmin >= 0:
+            color = 'red'  # Both min and max are positive
+        else:
+            color = 'gold'  # Spanning both negative and positive
+
+        # Draw vertical line from min to max
+        plt.vlines(x=i, ymin=vmin, ymax=vmax,
+                   colors=color, linewidth=2, alpha=0.7)
+
+        # Add small markers for min and max points
+        plt.plot(i, vmin, 'o', color='black', markersize=3)
+        plt.plot(i, vmax, 'o', color='black', markersize=3)
+
+    # Add horizontal line at y=0
+    plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.8)
+
+    # Customize plot
+    plt.title(f'Frustration Range per Residue ({enc_type}, Monomer {monomer_number}) for all the {len(file_dic)} frames')
+    plt.xlabel('Residue')
+    plt.ylabel('Frustration Value')
+
+    # Customize x-axis
+    plt.xticks(
+        range(len(residues))[::3],
+        residues[::3],
+        rotation=45,
+        fontsize=8,
+        ha='right'
+    )
+
+    # Create custom legend
+    green_patch = mpatches.Patch(color='green', label='Negative frustration', alpha=0.7)
+    red_patch = mpatches.Patch(color='red', label='Positive frustration', alpha=0.7)
+    gold_patch = mpatches.Patch(color='gold', label='Mixed frustration', alpha=0.7)
+    plt.legend(handles=[green_patch, red_patch, gold_patch])
+
+    plt.grid(True, linestyle=':', alpha=0.4)
+    plt.tight_layout()
+
+    # Save plot
+    name_plot = f"frustration_range_per_frame_{enc_type}_monomer_{monomer_number}.png"
+    plot_path = os.path.join(plots_dir, name_plot)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+
+
+def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_type2, monomer_number, plots_dir, file_dict):
+    """
+    Create a scatter plot comparing mean frustration values between two conditions.
+
+    Parameters:
+    - dico_mean1: {'M4': {'mean': -0.135, 'std': 0.668}, ...} for first condition
+    - dico_mean2: Same structure for second condition
+    - enc_type1, enc_number1: Identifier for first condition
+    - enc_type2, enc_number2: Identifier for second condition
+    - plots_dir: Directory to save the plot
+    """
+    # Extract common residues
+    #common_residues = sorted(set(dico_mean1.keys()) & set(dico_mean2.keys()))
+    #print(dico_mean1.keys())
+    #print(dico_mean2.keys())
+    #print(common_residues)
+    # Prepare data
+    x_vals = [dico_mean2[res]['mean'] for res in dico_mean2.keys()]
+    y_vals = [dico_mean1[res]['mean'] for res in dico_mean1.keys()]
+    #print(x_vals)
+    #print(y_vals)
+
+    # Create figure
+    plt.figure(figsize=(8, 8))
+
+    # Create scatter plot
+    plt.scatter(x_vals, y_vals, color='blue', alpha=0.6, s=50)
+
+    # Add reference lines
+    plt.axhline(0, color='gray', linestyle='--', linewidth=0.8)
+    plt.axvline(0, color='gray', linestyle='--', linewidth=0.8)
+
+    # Add identity line
+    max_val = max(max(np.abs(x_vals)), max(np.abs(y_vals))) * 1.1
+    plt.plot([-max_val, max_val], [-max_val, max_val], 'r--', alpha=0.5)
+
+    # Customize plot
+    plt.title(f'Mean monomers frustration comparison\n{enc_type1} monomer {monomer_number} vs {enc_type2} monomer {monomer_number} for all the {len(file_dict)} frames')
+    plt.xlabel(f'Mean Frustration ({enc_type2} monomer {monomer_number})')
+    plt.ylabel(f'Mean Frustration ({enc_type1} monomer {monomer_number})')
+    plt.grid(True, linestyle='--', alpha=0.3)
+
+    # Equal aspect ratio
+    plt.gca().set_aspect('equal', adjustable='box')
+
+    # Save plot
+    name_plot = f"scatter_frustration_per_frame_{enc_type1}_monomer_{monomer_number}_vs_{enc_type2}_monomer_{monomer_number}.png"
+    plot_path = os.path.join(plots_dir, name_plot)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    plt.close()
 
 
 def main(pdb_directory, monomer_number):
@@ -430,7 +566,7 @@ def main(pdb_directory, monomer_number):
 
     #2
     monomers = load_monomers(files_dict,chain_dict, monomer_number)
-    #print(f"Loaded {len(monomers)} monomers")
+    print(f"Loaded {len(monomers)} monomers")
 
 
     # 3. create aligned PDB files
@@ -451,9 +587,9 @@ def main(pdb_directory, monomer_number):
     #print(dico_mean)
 
     #9
-    plot_frustration_per_res(dico_mean, enc_type, monomer_number, plots_dir)
+    plot_frustration_per_res(dico_mean, enc_type, monomer_number, plots_dir, files_dict)
 
-
+    plot_min_max_frustration_bars(dico_monomers, enc_type, monomer_number, plots_dir, files_dict)
 
 
 
@@ -461,13 +597,96 @@ def main(pdb_directory, monomer_number):
     execution_time = end_time - start_time
     print(f"Temps d'exécution: {execution_time:.2f} secondes")
 
+#when 2 files given in parameters
+def main2(pdb_directory1, pdb_directory2, monomer_number):
+
+    start_time = time.time()
+
+    # 1. Extract the type (MtEnc/TmEnc) and number (t) from the directories
+    enc_type1, files_dict1, chain_dict1 = extract_info_from_directory(pdb_directory1)
+    print(f"Fist encapsulin type : {enc_type1}")
+    print(f"Number of Monomers by structure : {len(chain_dict1)}")
+    print(f"Number of frames : {len(files_dict1)} ")
+
+    enc_type2, files_dict2, chain_dict2 = extract_info_from_directory(pdb_directory2)
+    print(f"Secon encapsulin type : {enc_type2}")
+    print(f"Number of Monomers by structure : {len(chain_dict2)}")
+    print(f"Number of frames : {len(files_dict2)} ")
+
+
+    #1.1. create the output directories paths
+
+    frustration_dir1 = f"FRUSTRATION_{enc_type1.upper()}"
+    capsids_dir1 = f"{enc_type1.upper()}_CAPSIDS"
+    frames_dir = "FRUSTRATION_frames_for_a_monomer"
+    results_pdb_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,frames_dir, f"{enc_type1}_monomer_{monomer_number}_monomers")
+    results_frustration_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,frames_dir, f"{enc_type1}_monomer_{monomer_number}_frustration")
+
+    frustration_dir2 = f"FRUSTRATION_{enc_type2.upper()}"
+    capsids_dir2 = f"{enc_type2.upper()}_CAPSIDS"
+    frames_dir = "FRUSTRATION_frames_for_a_monomer"
+    results_pdb_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,frames_dir, f"{enc_type2}_monomer_{monomer_number}_monomers")
+    results_frustration_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,frames_dir, f"{enc_type2}_monomer_{monomer_number}_frustration")
+
+
+    plots_dir = os.path.join("../plots", "COMMON", "frustration")
+
+    #1.2 create the repository if it not exist
+    os.makedirs(results_pdb_dir1, exist_ok=True)
+    os.makedirs(results_frustration_dir1, exist_ok=True)
+    os.makedirs(results_pdb_dir2, exist_ok=True)
+    os.makedirs(results_frustration_dir2, exist_ok=True)
+
+    os.makedirs(plots_dir, exist_ok=True)
+
+    # 2. Charger les monomères
+    monomers1 = load_monomers(files_dict1, chain_dict1, monomer_number)
+    print(f"Loaded {len(monomers1)} monomers")
+
+    monomers2 = load_monomers(files_dict2, chain_dict2, monomer_number)
+    print(f"Loaded {len(monomers2)} monomers")
+
+     # 3. create PDB files
+    save_each_monomer_as_pdb(monomers1, results_pdb_dir1, enc_type1, files_dict1, monomer_number)
+    save_each_monomer_as_pdb(monomers2, results_pdb_dir2, enc_type2, files_dict2, monomer_number)
+
+    # 4. calculation of frustration
+    calculate_frustration(results_pdb_dir1, results_frustration_dir1)
+    calculate_frustration(results_pdb_dir2, results_frustration_dir2)
+
+    #6
+    dico_monomers1 = dico_of_dico_frustIndex(results_frustration_dir1)
+    dico_monomers2 = dico_of_dico_frustIndex(results_frustration_dir2)
+
+    #8.
+    dico_mean1 = dico_mean_frustration(dico_monomers1)
+    dico_mean2 = dico_mean_frustration(dico_monomers2)
+    #print(dico_mean1)
+    #print(dico_mean2)
+
+   # graphical view, scatter plot
+    plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_type2, monomer_number, plots_dir, files_dict1)
+
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"Temps d'exécution: {execution_time:.2f} secondes")
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3 :
-        print("Usage: python analyze_encapsulin.py path/to/encapsulin.pdb number_of_wanted_monomer")
+    if len(sys.argv) != 3 and len(sys.argv) != 4 :
+        print("Usage: python3 frustration_plots_multiples_files.py path/to/encapsulin.pdb number_of_wanted_monomer \n or python3 frustration_plots_multiples_files.py path/to/encapsulin1.pdb path/to/encapsulin2.pdb number_of_wanted_monomer")
         sys.exit(1)
     elif len(sys.argv) ==3:
         try:
             main(sys.argv[1], sys.argv[2])
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            sys.exit(1)
+    elif len(sys.argv) ==4:
+        try:
+            main2(sys.argv[1], sys.argv[2], sys.argv[3])
         except ValueError as e:
             print(f"Error: {e}")
             sys.exit(1)
