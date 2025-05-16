@@ -92,7 +92,7 @@ def main():
                 #print(f"3-letter sequence: {' '.join(three_letter_seq)}")
                 print(f"1-letter sequence: {one_letter_seq}")
             elif option == "2":
-                print('structural_align.py')
+                print('use structural_align.py')
             elif option == "3":
                 pdb_file1 = sys.argv[1]
                 if not os.path.isfile(pdb_file1):

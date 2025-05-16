@@ -439,9 +439,9 @@ def plot_min_max_frustration_bars(dico_monomers, enc_type, monomer_number, plots
     for i, (res, vmin, vmax) in enumerate(zip(residues, min_vals, max_vals)):
         # Determine color based on values
         if vmax <= 0:
-            color = 'green'  # Both min and max are negative
+            color = 'red'  # Both min and max are negative
         elif vmin >= 0:
-            color = 'red'  # Both min and max are positive
+            color = 'green'  # Both min and max are positive
         else:
             color = 'gold'  # Spanning both negative and positive
 
@@ -489,30 +489,38 @@ def plot_min_max_frustration_bars(dico_monomers, enc_type, monomer_number, plots
 def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_type2, monomer_number, plots_dir, file_dict):
     """
     Create a scatter plot comparing mean frustration values between two conditions.
+    Points are colored:
+    - Green if both x and y are positive
+    - Red if both x and y are negative
+    - Gold otherwise
 
     Parameters:
     - dico_mean1: {'M4': {'mean': -0.135, 'std': 0.668}, ...} for first condition
     - dico_mean2: Same structure for second condition
-    - enc_type1, enc_number1: Identifier for first condition
-    - enc_type2, enc_number2: Identifier for second condition
+    - enc_type1, enc_type2: Identifier for conditions
+    - monomer_number: Monomer number being analyzed
     - plots_dir: Directory to save the plot
+    - file_dict: Dictionary containing frame information to display count in title
     """
-    # Extract common residues
-    #common_residues = sorted(set(dico_mean1.keys()) & set(dico_mean2.keys()))
-    #print(dico_mean1.keys())
-    #print(dico_mean2.keys())
-    #print(common_residues)
     # Prepare data
     x_vals = [dico_mean2[res]['mean'] for res in dico_mean2.keys()]
     y_vals = [dico_mean1[res]['mean'] for res in dico_mean1.keys()]
-    #print(x_vals)
-    #print(y_vals)
+
+    # Determine colors
+    colors = []
+    for x, y in zip(x_vals, y_vals):
+        if x > 0 and y > 0:
+            colors.append('green')
+        elif x < 0 and y < 0:
+            colors.append('red')
+        else:
+            colors.append('gold')
 
     # Create figure
     plt.figure(figsize=(8, 8))
 
-    # Create scatter plot
-    plt.scatter(x_vals, y_vals, color='blue', alpha=0.6, s=50)
+    # Create scatter plot with colored points
+    plt.scatter(x_vals, y_vals, c=colors, alpha=0.7, s=60, edgecolors='black', linewidths=0.5)
 
     # Add reference lines
     plt.axhline(0, color='gray', linestyle='--', linewidth=0.8)
@@ -520,13 +528,25 @@ def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_type2, 
 
     # Add identity line
     max_val = max(max(np.abs(x_vals)), max(np.abs(y_vals))) * 1.1
-    plt.plot([-max_val, max_val], [-max_val, max_val], 'r--', alpha=0.5)
+    plt.plot([-max_val, max_val], [-max_val, max_val], 'k--', alpha=0.3)
 
-    # Customize plot
-    plt.title(f'Mean monomers frustration comparison\n{enc_type1} monomer {monomer_number} vs {enc_type2} monomer {monomer_number} for all the {len(file_dict)} frames')
+    # Customize plot with frame count in title
+    plt.title(
+        f'Mean monomers frustration comparison\n{enc_type1} vs {enc_type2} for monomer {monomer_number}\n({len(file_dict)} frames analyzed)',
+        pad=20
+    )
     plt.xlabel(f'Mean Frustration ({enc_type2} monomer {monomer_number})')
     plt.ylabel(f'Mean Frustration ({enc_type1} monomer {monomer_number})')
-    plt.grid(True, linestyle='--', alpha=0.3)
+    plt.grid(True, linestyle=':', alpha=0.3)
+
+    # Create legend
+    import matplotlib.patches as mpatches
+    legend_elements = [
+        mpatches.Patch(color='green', label='Both positive'),
+        mpatches.Patch(color='red', label='Both negative'),
+        mpatches.Patch(color='gold', label='Mixed signs')
+    ]
+    plt.legend(handles=legend_elements, loc='best')
 
     # Equal aspect ratio
     plt.gca().set_aspect('equal', adjustable='box')
@@ -534,7 +554,7 @@ def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_type2, 
     # Save plot
     name_plot = f"scatter_frustration_per_frame_{enc_type1}_monomer_{monomer_number}_vs_{enc_type2}_monomer_{monomer_number}.png"
     plot_path = os.path.join(plots_dir, name_plot)
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
 
 
@@ -573,7 +593,7 @@ def main(pdb_directory, monomer_number):
     save_each_monomer_as_pdb(monomers, results_pdb_dir, enc_type, files_dict, monomer_number)
 
     # 4. calculation of frustration
-    calculate_frustration(results_pdb_dir, results_frustration_dir)
+    #calculate_frustration(results_pdb_dir, results_frustration_dir)
 
     #6
     dico_monomers = dico_of_dico_frustIndex(results_frustration_dir)
@@ -651,8 +671,8 @@ def main2(pdb_directory1, pdb_directory2, monomer_number):
     save_each_monomer_as_pdb(monomers2, results_pdb_dir2, enc_type2, files_dict2, monomer_number)
 
     # 4. calculation of frustration
-    calculate_frustration(results_pdb_dir1, results_frustration_dir1)
-    calculate_frustration(results_pdb_dir2, results_frustration_dir2)
+    #calculate_frustration(results_pdb_dir1, results_frustration_dir1)
+    #calculate_frustration(results_pdb_dir2, results_frustration_dir2)
 
     #6
     dico_monomers1 = dico_of_dico_frustIndex(results_frustration_dir1)
