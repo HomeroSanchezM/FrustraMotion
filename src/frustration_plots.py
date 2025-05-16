@@ -263,6 +263,105 @@ def dico_of_dico_frustIndex(frustration_directory):
 
     return dico_monomers
 
+
+def dico_percentage_frustration_types(dico_monomers):
+    """
+    Calculate the percentage of each frustration type for all monomers.
+
+    Frustration types are defined as:
+
+    *******
+    TO DO : invertir higth minimal
+    *******
+
+    - high: frustration > 0.78
+    - minimal: frustration < -1
+    - neutral: -1 ≤ frustration ≤ 0.78
+
+    Args:
+        dico_monomers: Dictionary with format {monomer_num: {'res1': frustration, ...}, ...}
+
+    Returns:
+        Dictionary with format {monomer_num: {'high': %, 'minimal': %, 'neutral': %}, ...}
+    """
+    dico_percentage = {}
+
+    for monomer_num, residue_data in dico_monomers.items():
+        # Initialize counters
+        counts = {'high': 0, 'minimal': 0, 'neutral': 0}
+        total_residues = len(residue_data)
+
+        if total_residues == 0:
+            dico_percentage[monomer_num] = {'high': 0, 'minimal': 0, 'neutral': 0}
+            continue
+
+        # Classify each residue
+        for frustration in residue_data.values():
+            if frustration > 0.78:
+                counts['high'] += 1
+            elif frustration < -1:
+                counts['minimal'] += 1
+            else:
+                counts['neutral'] += 1
+
+        # Calculate percentages
+        percentages = {
+            'high': round((counts['high'] / total_residues) * 100, 2),
+            'minimal': round((counts['minimal'] / total_residues) * 100, 2),
+            'neutral': round((counts['neutral'] / total_residues) * 100, 2)
+        }
+
+        dico_percentage[monomer_num] = percentages
+
+    return dico_percentage
+
+
+import numpy as np
+
+
+def dico_mean_percentage_frustration_types(dico_percentage):
+    """
+    Calculate mean and standard deviation of frustration type percentages across all monomers.
+
+    Args:
+        dico_percentage: Dictionary with format
+            {monomer_num: {'high': %, 'minimal': %, 'neutral': %}, ...}
+
+    Returns:
+        Dictionary with format
+            {'high': {'mean': float, 'std': float},
+             'minimal': {'mean': float, 'std': float},
+             'neutral': {'mean': float, 'std': float}}
+    """
+    # Initialize lists to collect all percentages for each type
+    high_percents = []
+    minimal_percents = []
+    neutral_percents = []
+
+    # Collect all percentages
+    for monomer_data in dico_percentage.values():
+        high_percents.append(monomer_data['high'])
+        minimal_percents.append(monomer_data['minimal'])
+        neutral_percents.append(monomer_data['neutral'])
+
+    # Calculate mean and std for each frustration type
+    dico_mean_percentage = {
+        'high': {
+            'mean': round(float(np.mean(high_percents)), 2),
+            'std': round(float(np.std(high_percents)), 2)
+        },
+        'minimal': {
+            'mean': round(float(np.mean(minimal_percents)), 2),
+            'std': round(float(np.std(minimal_percents)), 2)
+        },
+        'neutral': {
+            'mean': round(float(np.mean(neutral_percents)), 2),
+            'std': round(float(np.std(neutral_percents)), 2)
+        }
+    }
+
+    return dico_mean_percentage
+
 #7. plot of all the frustration variation, have to be improved
 def plot_all_frustration_per_res (dico_monomers, enc_type , enc_number, plots_dir ) :
     """
@@ -548,10 +647,12 @@ def plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir
     # Plot vertical bars for each residue
     for i, (res, vmin, vmax) in enumerate(zip(residues, min_vals, max_vals)):
         # Determine color based on values
-        if vmax <= 0:
+        if vmax <= -1:
             color = 'red'  # Both min and max are negative
-        elif vmin >= 0:
+        elif vmin >= 0.78:
             color = 'green'  # Both min and max are positive
+        elif vmax < 0.78 and vmin > -1 :
+            color = 'grey'
         else:
             color = 'gold'  # Spanning both negative and positive
 
@@ -581,10 +682,11 @@ def plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir
     )
 
     # Create custom legend
-    green_patch = mpatches.Patch(color='green', label='Negative frustration', alpha=0.7)
-    red_patch = mpatches.Patch(color='red', label='Positive frustration', alpha=0.7)
+    green_patch = mpatches.Patch(color='green', label='minimal frustration', alpha=0.7)
+    red_patch = mpatches.Patch(color='red', label='High frustration', alpha=0.7)
+    grey_patch = mpatches.Patch(color='grey', label='neutral frustration', alpha=0.7)
     gold_patch = mpatches.Patch(color='gold', label='Mixed frustration', alpha=0.7)
-    plt.legend(handles=[green_patch, red_patch, gold_patch])
+    plt.legend(handles=[green_patch, grey_patch, red_patch, gold_patch])
 
     plt.grid(True, linestyle=':', alpha=0.4)
     plt.tight_layout()
@@ -685,12 +787,16 @@ def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1
     y_vals = [dico_mean1[res]['mean'] for res in dico_mean1.keys()]
 
     for k in range (len(x_vals)):
-        if x_vals[k] > 0 and y_vals[k] > 0:
+        if x_vals[k] >= 0.78 and y_vals[k] >= 0.78:
             colors.append('green')
-        elif x_vals[k] < 0 and y_vals[k] < 0:
+        elif x_vals[k] <= -1 and y_vals[k] <= -1:
             colors.append('red')
-        else:
-            colors.append('gold')
+        elif -1<x_vals[k]<0.78  and -1<y_vals[k]<0.78:
+            colors.append('grey')
+        elif x_vals[k]>y_vals[k]:
+            colors.append('yellow')
+        else :
+            colors.append('goldenrod')
 
     # Create figure
     plt.figure(figsize=(8, 8))
@@ -716,9 +822,11 @@ def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1
     # Create legend
     import matplotlib.patches as mpatches
     legend_elements = [
-        mpatches.Patch(color='green', label='Both positive'),
-        mpatches.Patch(color='red', label='Both negative'),
-        mpatches.Patch(color='gold', label='Mixed signs')
+        mpatches.Patch(color='green', label='minimal frustration conserved'),
+        mpatches.Patch(color='red', label='High frustration conserved'),
+        mpatches.Patch(color='grey', label='neutral frustration conserved'),
+        mpatches.Patch(color='yellow', label='MtEnc more frustrated than TmEnc'),
+        mpatches.Patch(color='goldenrod', label='TmEnc more frustrated than MtEnc')
     ]
     plt.legend(handles=legend_elements, loc='best')
 
@@ -730,6 +838,63 @@ def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1
     plot_path = os.path.join(plots_dir, name_plot)
     plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
+    return colors
+
+def plot_barplot_percentage_frustration_types(plots_dir):
+        """
+        Crée un barplot comparant les types de frustration entre MtEnc et TmEnc
+        avec barres d'erreur pour les écarts-types.
+        """
+        # Données organisées
+        categories = ['Minimal', 'High', 'Neutral']
+        mtenc_means = [11.48, 30.08, 55.11]
+        mtenc_stds = [2.49, 5.73, 10.38]
+        tmenc_means = [11.22, 34.79, 53.98]
+        tmenc_stds = [1.44, 1.42, 2.0]
+
+
+        # Paramètres du graphique
+        bar_width = 0.35
+        index = np.arange(len(categories))
+
+        # Création du plot
+        plt.figure(figsize=(10, 6))
+
+        # Barres pour MtEnc
+        plt.bar(index - bar_width / 2, mtenc_means, bar_width,
+                yerr=mtenc_stds, capsize=5,
+                label='MtEnc', color='red')
+
+        # Barres pour TmEnc
+        plt.bar(index + bar_width / 2, tmenc_means, bar_width,
+                yerr=tmenc_stds, capsize=5,
+                label='TmEnc', color='goldenrod')
+
+        # Personnalisation
+        plt.title('Comparison of Frustration Types between MtEnc and TmEnc', fontsize=14)
+        plt.xlabel('Frustration Type', fontsize=12)
+        plt.ylabel('Percentage (%)', fontsize=12)
+        plt.xticks(index, categories)
+        plt.ylim(0, 70)
+
+        # Ajout des valeurs sur les barres
+        for i in range(len(categories)):
+            plt.text(i - bar_width / 2, mtenc_means[i] + 2, f'{mtenc_means[i]:.2f}%',
+                     ha='center', va='bottom')
+            plt.text(i + bar_width / 2, tmenc_means[i] + 2, f'{tmenc_means[i]:.2f}%',
+                     ha='center', va='bottom')
+
+        # Légende et grille
+        plt.legend(loc='upper right')
+        plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+        # Afficher le plot
+        plt.tight_layout()
+          # Save plot
+        name_plot = f"frustration_barplot_per_res.png"
+        plot_path = os.path.join(plots_dir, name_plot)
+        plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
 
 
 #when only a file given
@@ -785,6 +950,14 @@ def main(pdb_file1):
     #dico_list = dico_list_frustration(dico_monomers)
     #plot_frustration_boxplots(dico_list, enc_type, enc_number, plots_dir)
 
+    # % of frustration type
+    dico_types = dico_percentage_frustration_types(dico_monomers)
+    #print(dico_types)
+
+    dico_mean_types = dico_mean_percentage_frustration_types(dico_types)
+    print(dico_mean_types)
+
+    plot_barplot_percentage_frustration_types(plots_dir)
     end_time = time.time()
     execution_time = end_time - start_time
     print(f"Temps d'exécution: {execution_time:.2f} secondes")
@@ -849,7 +1022,55 @@ def main2(pdb_file1, pdb_file2):
 
 
    # graphical view, scatter plot
-    plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1, enc_type2, enc_number2, plots_dir)
+    colors = plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1, enc_type2, enc_number2, plots_dir)
+    print(colors)
+    green_list = []
+    red_list = []
+    grey_list = []
+    yellow_list = []
+    goldenrod_list = []
+    for k in range(len(colors)):
+        if colors[k] == "green" :
+            green_list.append(k+1)
+        elif colors[k] == "red" :
+            red_list.append(k+1)
+        elif colors[k] == "grey" :
+            grey_list.append(k+1)
+        elif colors[k] == "yellow" :
+            yellow_list.append(k+1)
+        elif colors[k] == "goldenrod" :
+            goldenrod_list.append(k+1)
+    print_num = ""
+    for num in green_list :
+        print_num+=str(num)+" "
+    print( print_num)
+
+    print_num = ""
+    for num in red_list :
+        print_num+=str(num)+" "
+    print( print_num)
+
+    print_num = ""
+    for num in grey_list :
+        print_num+=str(num)+" "
+    print( print_num)
+
+    print_num = ""
+    for num in yellow_list :
+        print_num+=str(num)+" "
+    print( print_num)
+
+    print_num = ""
+    for num in goldenrod_list :
+        print_num+=str(num)+" "
+    print( print_num)
+    print(green_list)
+    print(red_list)
+    print(grey_list)
+    print(yellow_list)
+    print(goldenrod_list)
+    #coloring structure
+    #color_structure_by_index(colors,  results_pdb_dir1, results_pdb_dir2)
 
     end_time = time.time()
     execution_time = end_time - start_time
