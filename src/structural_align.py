@@ -20,18 +20,16 @@ or organise all the plot generation with options of clculate only a part of it o
 
 '''
 '''
-This scripts take one PDB File containing multiples monomers (chains) and make a structural alignment of the monomers and mesure the  mean RMSF for all the monomers per #res
-A plot is add to the plot directory, with name of type rmsf_with_std_per_res_<TmEnc|MtEnc>_monomer_<(t)>.png
-The aligned PDB files are added to the result directory. 
-Usage:
-
-python3 structural_align.py chemin/vers/fichier.pdb
+This scripts take one PDB File containing multiples monomers (chains) and make a structural alignment of the monomers and mesure the mean RMSF for all the monomers per residue.
+A plot is added to the plots directory, with name of type `rmsf_with_std_per_res_<TmEnc|MtEnc>_monomer_<(t)>.png`
+The aligned PDB files are added to the result directory.
+python3 structural_align.py path/to/file.pdb
 
 If 2 files given as parameter, the script will align the 2 files structures entirely (not considering monmers)
 
-Usage:
+python3 structural_align.py path/to/file1.pdb path/to/file2.pdb
 
-python3 structural_align.py chemin/vers/1erfichier.pdb parser_pdb.py chemin/vers/2emefichier.pdb
+
 '''
 
 # delete non essential warning
