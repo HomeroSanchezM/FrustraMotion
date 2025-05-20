@@ -10,7 +10,7 @@ import re
 import gzip
 import shutil
 import time
-
+import subprocess
 
 
 '''
@@ -236,6 +236,74 @@ def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type, file_dict, 
 
         print(f"Saved frame {frame_number} as {output_file}")
 
+def visualization_VMD_script(output_dir, enc_type, monomer_number, execute_vmd = False):
+    """
+    This function generates a tcl script for structural alignment visualization using VMD,
+    which loads multiple monomer PDB files and applies different colors to each.
+
+    :param output_dir: where to create the tcl file
+    :param enc_type1: <TmEnc|MtEnc>
+    :param enc_number1: the number of the frame studied
+    """
+
+    script_content = f"""# Load 491 monomers {enc_type}0_monomer{monomer_number}.pdb ... {enc_type}4900_monomer{monomer_number}.pdb
+
+set num_monomers 491
+set base_filename "{output_dir}/{enc_type}"
+set monomer_suffix "_monomer{monomer_number}.pdb"
+
+# Colors - using VMD's default color IDs
+set available_colors [list 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24]
+
+# Calculate frame numbers (0, 10, 20, ..., 4900)
+set frame_numbers {{}}
+for {{set i 0}} {{$i < $num_monomers}} {{incr i}} {{
+    lappend frame_numbers [expr {{$i * 10}}]
+}}
+
+# Load each structure with proper naming
+set color_index 0
+foreach frame $frame_numbers {{
+    set filename "${{base_filename}}${{frame}}${{monomer_suffix}}"
+    puts "Loading $filename..."
+    
+    # Load PDB file
+    mol new $filename type pdb waitfor all
+    
+    # Apply color (cycle through available colors)
+    mol modcolor 0 [molinfo top] "ColorID" [lindex $available_colors $color_index]
+    set color_index [expr {{($color_index + 1) % [llength $available_colors]}}]
+    
+    # Apply representation (optional)
+    mol modstyle 0 [molinfo top] "NewCartoon"
+}}
+
+puts "Successfully loaded $num_monomers structures."
+
+"""
+
+    # Create the output directory if it doesn't exist
+    import os
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Define the output file path
+    output_file = os.path.join(output_dir, "load_data.tcl")
+
+    # Write the script to file
+    with open(output_file, 'w') as f:
+        f.write(script_content)
+    # Execute VMD if requested
+    if execute_vmd:
+        try:
+
+            subprocess.run(["vmd", "-e", output_file], check=True)
+            print(f"Successfully executed VMD with script: {output_file}")
+        except subprocess.CalledProcessError as e:
+            print(f"Error executing VMD: {e}")
+        except FileNotFoundError:
+            print("VMD not found. Please make sure VMD is installed and in your PATH.")
+
+
 #5.
 def coord_of_atom (aligned_monomers) :
     """return a dico with the list of cords for all the atoms of each residue"""
@@ -364,6 +432,8 @@ def main(pdb_directory, monomer_number):
     # 4. create aligned PDB files
     save_each_monomer_as_pdb(aligned, results_dir, enc_type, files_dict, monomer_number)
 
+    #4.2 alignment visualization
+    visualization_VMD_script(results_dir, enc_type, monomer_number, True)
     # 5. create dico of coord of each atom
     dico_of_coords = coord_of_atom(aligned)
     print("atoms coordinates parsed")

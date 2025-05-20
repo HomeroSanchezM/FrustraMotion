@@ -1,7 +1,7 @@
 # Load 491 monomers TmEnc0_monomer1.pdb ... TmEnc4900_monomer1.pdb
 
 set num_monomers 491
-set base_filename "TmEnc"
+set base_filename "../results/FRUSTRATION_TMENC/TMENC_CAPSIDS/aligned_frames_for_a_monomer/TmEnc_monomer_1_aligned_frames/TmEnc"
 set monomer_suffix "_monomer1.pdb"
 
 # Colors - using VMD's default color IDs
@@ -31,3 +31,4 @@ foreach frame $frame_numbers {
 }
 
 puts "Successfully loaded $num_monomers structures."
+
