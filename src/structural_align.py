@@ -8,6 +8,7 @@ from Bio.PDB import PDBIO, Structure, Model, Chain
 import os
 import re
 import time
+import subprocess
 
 
 
@@ -210,7 +211,61 @@ def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type1 , enc_numbe
             print(f"Monomer {i} save in {output_file}")
 
 
+def visualization_VMD_script(output_dir, enc_type1, enc_number1, execute_vmd = False):
+    """
+    This function generates a tcl script for structural alignment visualization using VMD,
+    which loads multiple monomer PDB files and applies different colors to each.
 
+    :param output_dir: where to create the tcl file
+    :param enc_type1: <TmEnc|MtEnc>
+    :param enc_number1: the number of the frame studied
+    """
+
+    script_content = f"""# Load 60 monomers {enc_type1}{enc_number1}_monomer1.pdb ... {enc_type1}{enc_number1}_monomer60.pdb
+
+set num_monomers 60
+set base_filename "{output_dir}/{enc_type1}{enc_number1}_monomer"
+
+# Colors
+set available_colors [list 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24]
+
+for {{set i 1}} {{$i <= $num_monomers}} {{incr i}} {{
+    set filename "${{base_filename}}${{i}}.pdb"
+    puts "Loading $filename..."
+
+    # load PDB
+    mol new $filename type pdb waitfor all
+
+    # Apply colors
+    set molID [molinfo top]
+    mol modstyle 0 $molID NewCartoon
+    mol modcolor 0 $molID ColorID [expr {{($i - 1) % [llength $available_colors]}}]
+
+    # Transparence (0.0 = opaque, 1.0 = invisible)
+    mol material Transparent
+}}
+"""
+
+    # Create the output directory if it doesn't exist
+    import os
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Define the output file path
+    output_file = os.path.join(output_dir, "load_data.tcl")
+
+    # Write the script to file
+    with open(output_file, 'w') as f:
+        f.write(script_content)
+    # Execute VMD if requested
+    if execute_vmd:
+        try:
+
+            subprocess.run(["vmd", "-e", output_file], check=True)
+            print(f"Successfully executed VMD with script: {output_file}")
+        except subprocess.CalledProcessError as e:
+            print(f"Error executing VMD: {e}")
+        except FileNotFoundError:
+            print("VMD not found. Please make sure VMD is installed and in your PATH.")
 
 
 #5.
@@ -321,16 +376,19 @@ def main(pdb_file1):
     os.makedirs(results_dir, exist_ok=True)
     os.makedirs(plots_dir, exist_ok=True)
 
-    # 2. Charger les monomères
+    # 2. parse the monomers
     monomers = load_monomers(pdb_file1)
     print(f"Loaded {len(monomers)} monomers")
 
-    # 3. Alignement structural
+    # 3. Structural alignement
     aligned = structural_alignment(monomers)
     print("Structural alignment completed")
 
     # 4. create aligned PDB files
     save_each_monomer_as_pdb(aligned, results_dir, enc_type, enc_number)
+
+    #4.1 visualisation of the alignment
+    visualization_VMD_script(results_dir, enc_type, enc_number, True)
 
     # 5. create dico of coord of each atom
     dico_of_coords = coord_of_atom(aligned)

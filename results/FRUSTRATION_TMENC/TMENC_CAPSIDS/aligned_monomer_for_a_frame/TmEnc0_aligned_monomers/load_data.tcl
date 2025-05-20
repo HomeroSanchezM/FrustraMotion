@@ -1,7 +1,7 @@
 # Load 60 monomers TmEnc0_monomer1.pdb ... TmEnc0_monomer60.pdb
 
 set num_monomers 60
-set base_filename "TmEnc0_monomer"
+set base_filename "../results/FRUSTRATION_TMENC/TMENC_CAPSIDS/aligned_monomer_for_a_frame/TmEnc0_aligned_monomers/TmEnc0_monomer"
 
 # Colors
 set available_colors [list 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24]
@@ -21,4 +21,3 @@ for {set i 1} {$i <= $num_monomers} {incr i} {
     # Transparence (0.0 = opaque, 1.0 = invisible)
     mol material Transparent
 }
-
