@@ -13,7 +13,7 @@ import matplotlib.patches as mpatches
 import seaborn as sns
 import pandas as pd
 
-#from FrustraMotion.src.parser_pdb import return_sequence_3_letter_format
+
 
 '''
 TO DO : 
@@ -220,7 +220,7 @@ def dico_frustIndex(frustration_file):
     with open(frustration_file, 'r') as f:
         # Skip header line if present
         header = f.readline()
-
+        count = 1
         for line in f:
             # Skip empty lines
             if not line.strip():
@@ -230,13 +230,14 @@ def dico_frustIndex(frustration_file):
 
             # Check we have enough columns (at least 8)
             if len(parts) >= 8:
-                res_num = parts[0]  # Residue number (4, 5, 6...)
+                res_num = count  # Residue number (4, 5, 6...)
                 aa = parts[3]  # Amino acid (M, E, F...)
                 frst_index = float(parts[7])  # FrstIndex value
 
                 # Create key like "M4" and add to dictionary
                 key = f"{aa}{res_num}"
                 frustration_dict[key] = frst_index
+                count += 1
 
     return frustration_dict
 #6
@@ -840,6 +841,103 @@ def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1
     plt.close()
     return colors
 
+
+def visualization_VMD_script(output_dir1, output_dir2, enc_type1, enc_type2, enc_number1, enc_number2, green_num,
+                             red_num, grey_num, yellow_num, goldenrod_num, execute_vmd=False):
+    """
+    This function generates a tcl script for frustration by single residues visualization using VMD,
+    which gives a specific color to each residue of the first monomer PDB files of the result dir.
+
+    :param output_dir1: first directory where to create the tcl file
+    :param output_dir2: second directory where to create the tcl file
+    :param enc_type1: <TmEnc|MtEnc> for the first file
+    :param enc_type2: <TmEnc|MtEnc> for the second file
+    :param enc_number1: the number of the first frame studied
+    :param enc_number2: the number of the second frame studied
+    :param green_num: list of residues for group1 (green)
+    :param red_num: list of residues for group2 (red)
+    :param grey_num: list of residues for group3 (grey)
+    :param yellow_num: list of residues for group4 (yellow)
+    :param goldenrod_num: list of residues for group5 (goldenrod)
+    :param execute_vmd: if True, automatically executes the script with VMD
+    """
+
+    def generate_script_content(output_dir, enc_type, enc_number):
+        return f"""# Charger la molécule
+mol new {output_dir}/{enc_type}{enc_number}_monomer1.pdb type pdb waitfor all
+
+# Supprimer les représentations existantes
+mol delrep 0 top
+
+# Représentation de base pour toute la molécule
+mol representation NewCartoon
+mol color Name
+mol selection "all"
+mol material Opaque
+mol addrep top
+
+# Définir les groupes de résidus
+set group1 {{{green_num}}}
+set group2 {{{red_num}}}
+set group3 {{{grey_num}}}
+set group4 {{{yellow_num}}}
+set group5 {{{goldenrod_num}}}
+
+# Fonction pour créer une sélection et une représentation
+proc add_residue_group {{resid_list color_id}} {{
+    set selection_text ""
+    foreach r $resid_list {{
+        append selection_text "resid $r or "
+    }}
+    set selection_text [string range $selection_text 0 end-4]
+
+    mol representation NewCartoon
+    mol selection $selection_text
+    mol color ColorID $color_id
+    mol material Opaque
+    mol addrep top
+}}
+
+# apply colors for each group
+add_residue_group $group1 19  ;# green2
+add_residue_group $group2 1   ;# red
+add_residue_group $group3 6   ;# silver
+add_residue_group $group4 4   ;# yellow
+add_residue_group $group5 5   ;# tan
+"""
+
+    # Create output directories if they don't exist
+    os.makedirs(output_dir1, exist_ok=True)
+    os.makedirs(output_dir2, exist_ok=True)
+
+    # Define output file paths
+    output_file1 = os.path.join(output_dir1, "frustration_per_res_colors.tcl")
+    output_file2 = os.path.join(output_dir2, "frustration_per_res_colors.tcl")
+
+    # Generate and write script for output_file1
+    script_content1 = generate_script_content(output_dir1, enc_type1, enc_number1)
+    with open(output_file1, 'w') as f:
+        f.write(script_content1)
+
+    # Generate and write script for output_file2 (with different parameters)
+    script_content2 = generate_script_content(output_dir2, enc_type2, enc_number2)
+    with open(output_file2, 'w') as f:
+        f.write(script_content2)
+
+    # Execute VMD if requested
+    if execute_vmd:
+        try:
+            subprocess.run(["vmd", "-e", output_file1], check=True)
+            print(f"Successfully executed VMD with script: {output_file1}")
+            subprocess.run(["vmd", "-e", output_file2], check=True)
+            print(f"Successfully executed VMD with script: {output_file2}")
+        except subprocess.CalledProcessError as e:
+            print(f"Error executing VMD: {e}")
+        except FileNotFoundError:
+            print("VMD not found. Please make sure VMD is installed and in your PATH.")
+
+
+
 def plot_barplot_percentage_frustration_types(plots_dir):
         """
         Crée un barplot comparant les types de frustration entre MtEnc et TmEnc
@@ -941,7 +1039,7 @@ def main(pdb_file1):
     #print(dico_mean)
 
     #9
-    #plot_frustration_per_res(dico_mean, enc_type, enc_number, plots_dir)
+    plot_frustration_per_res(dico_mean, enc_type, enc_number, plots_dir)
 
     #10
     #plot_min_and_max_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
@@ -1023,7 +1121,7 @@ def main2(pdb_file1, pdb_file2):
 
    # graphical view, scatter plot
     colors = plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1, enc_type2, enc_number2, plots_dir)
-    print(colors)
+    #print(colors)
     green_list = []
     red_list = []
     grey_list = []
@@ -1040,37 +1138,41 @@ def main2(pdb_file1, pdb_file2):
             yellow_list.append(k+1)
         elif colors[k] == "goldenrod" :
             goldenrod_list.append(k+1)
-    print_num = ""
+    green_num = ""
     for num in green_list :
-        print_num+=str(num)+" "
-    print( print_num)
+        green_num+=str(num)+" "
+    #print( green_num)
 
-    print_num = ""
+    red_num = ""
     for num in red_list :
-        print_num+=str(num)+" "
-    print( print_num)
+        red_num+=str(num)+" "
+    #print( red_num)
 
-    print_num = ""
+    grey_num = ""
     for num in grey_list :
-        print_num+=str(num)+" "
-    print( print_num)
+        grey_num+=str(num)+" "
+    #print( grey_num)
 
-    print_num = ""
+    yellow_num = ""
     for num in yellow_list :
-        print_num+=str(num)+" "
-    print( print_num)
+        yellow_num+=str(num)+" "
+    #print( yellow_num)
 
-    print_num = ""
+    goldenrod_num = ""
     for num in goldenrod_list :
-        print_num+=str(num)+" "
-    print( print_num)
-    print(green_list)
-    print(red_list)
-    print(grey_list)
-    print(yellow_list)
-    print(goldenrod_list)
+        goldenrod_num+=str(num)+" "
+    #print( goldenrod_num)
+
+    #print(green_list)
+    #print(red_list)
+    #print(grey_list)
+    #print(yellow_list)
+    #print(goldenrod_list)
     #coloring structure
     #color_structure_by_index(colors,  results_pdb_dir1, results_pdb_dir2)
+
+    #plot visualisation
+    visualization_VMD_script(results_pdb_dir1, results_pdb_dir2, enc_type1, enc_type2, enc_number1, enc_number2, green_num, red_num, grey_num, yellow_num, goldenrod_num, True)
 
     end_time = time.time()
     execution_time = end_time - start_time
