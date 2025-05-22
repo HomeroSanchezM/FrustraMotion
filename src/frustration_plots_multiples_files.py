@@ -841,8 +841,33 @@ def plot_barplot_percentage_frustration_types(plots_dir,dico_mean_type_1 , dico_
         plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
 
+def parse_arguments():
+    """Parse command line arguments including optional -vmd and -frustration flags"""
+    vmd_flag = False
+    frustration_flag = False
+    pdb_files = []
+    monomer_number = None
 
-def main(pdb_directory, monomer_number):
+    for arg in sys.argv[1:]:
+        if arg.startswith('-vmd='):
+            vmd_value = arg.split('=')[1].lower()
+            if vmd_value == 'true':
+                vmd_flag = True
+        elif arg.startswith('-frustration='):
+            frustration_value = arg.split('=')[1].lower()
+            if frustration_value == 'true':
+                frustration_flag = True
+        elif arg.isdigit():
+            monomer_number = arg
+        else:
+            pdb_files.append(arg)
+
+    if not monomer_number:
+        raise ValueError("Monomer number must be specified as a numeric argument")
+
+    return pdb_files, monomer_number, vmd_flag, frustration_flag
+
+def main(pdb_directory, monomer_number, vmd_flag=False, frustration_flag=False):
     start_time = time.time()
 
     #1.
@@ -859,7 +884,7 @@ def main(pdb_directory, monomer_number):
     capsids_dir = f"{enc_type.upper()}_CAPSIDS"
     frames_dir = "FRUSTRATION_frames_for_a_monomer"
     results_pdb_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,frames_dir, f"{enc_type}_monomer_{monomer_number}_monomers")
-    results_frustration_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,frames_dir, f"{enc_type}_monomer_{monomer_number}_frustration")
+    results_frustration_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,frames_dir, f"{enc_type}_monomer_{monomer_number}_frustration_seqdist_12")
 
     plots_dir = os.path.join("../plots", enc_type, "frustration")
 
@@ -869,15 +894,17 @@ def main(pdb_directory, monomer_number):
     os.makedirs(plots_dir, exist_ok=True)
 
     #2
-    #monomers = load_monomers(files_dict,chain_dict, monomer_number)
+    monomers = load_monomers(files_dict,chain_dict, monomer_number)
     #print(f"Loaded {len(monomers)} monomers")
 
 
     # 3. create aligned PDB files
-    #save_each_monomer_as_pdb(monomers, results_pdb_dir, enc_type, files_dict, monomer_number)
+    save_each_monomer_as_pdb(monomers, results_pdb_dir, enc_type, files_dict, monomer_number)
 
     # 4. calculation of frustration
-    #calculate_frustration(results_pdb_dir, results_frustration_dir)
+    if frustration_flag:
+        calculate_frustration(results_pdb_dir, results_frustration_dir)
+
 
     #6
     dico_monomers = dico_of_dico_frustIndex(results_frustration_dir)
@@ -908,7 +935,7 @@ def main(pdb_directory, monomer_number):
     print(f"Temps d'exécution: {execution_time:.2f} secondes")
 
 #when 2 files given in parameters
-def main2(pdb_directory1, pdb_directory2, monomer_number):
+def main2(pdb_directory1, pdb_directory2, monomer_number,vmd_flag=False, frustration_flag=False ):
 
     start_time = time.time()
 
@@ -950,19 +977,21 @@ def main2(pdb_directory1, pdb_directory2, monomer_number):
     os.makedirs(plots_dir, exist_ok=True)
 
     # 2. Charger les monomères
-    #monomers1 = load_monomers(files_dict1, chain_dict1, monomer_number)
-    #print(f"Loaded {len(monomers1)} monomers")
+    monomers1 = load_monomers(files_dict1, chain_dict1, monomer_number)
+    print(f"Loaded {len(monomers1)} monomers")
 
-    #monomers2 = load_monomers(files_dict2, chain_dict2, monomer_number)
-    #print(f"Loaded {len(monomers2)} monomers")
+    monomers2 = load_monomers(files_dict2, chain_dict2, monomer_number)
+    print(f"Loaded {len(monomers2)} monomers")
 
      # 3. create PDB files
-    #save_each_monomer_as_pdb(monomers1, results_pdb_dir1, enc_type1, files_dict1, monomer_number)
-    #save_each_monomer_as_pdb(monomers2, results_pdb_dir2, enc_type2, files_dict2, monomer_number)
+    save_each_monomer_as_pdb(monomers1, results_pdb_dir1, enc_type1, files_dict1, monomer_number)
+    save_each_monomer_as_pdb(monomers2, results_pdb_dir2, enc_type2, files_dict2, monomer_number)
 
     # 4. calculation of frustration
-    #calculate_frustration(results_pdb_dir1, results_frustration_dir1)
-    #calculate_frustration(results_pdb_dir2, results_frustration_dir2)
+    if frustration_flag:
+        calculate_frustration(results_pdb_dir1, results_frustration_dir1)
+        calculate_frustration(results_pdb_dir2, results_frustration_dir2)
+
 
     #6
     dico_monomers1 = dico_of_dico_frustIndex(results_frustration_dir1)
@@ -1025,7 +1054,7 @@ def main2(pdb_directory1, pdb_directory2, monomer_number):
     #print(goldenrod_list)
 
     # visualise mean frustration for each residue
-    visualization_VMD_script(results_pdb_dir1, results_pdb_dir2, enc_type1, enc_type2 ,monomer_number,green_num, red_num, grey_num, yellow_num, goldenrod_num, False)
+    visualization_VMD_script(results_pdb_dir1, results_pdb_dir2, enc_type1, enc_type2 ,monomer_number,green_num, red_num, grey_num, yellow_num, goldenrod_num, vmd_flag)
 
     # % of frustration type
     dico_types_1 = dico_percentage_frustration_types(dico_monomers1)
