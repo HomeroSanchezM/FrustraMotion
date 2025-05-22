@@ -31,7 +31,7 @@ Usage:
 
 python3 frustration_plots.py path/to/file.pdb
 
-If 2 file given, frustration will be calculated for the monomers of the 2 files and a scatter-plot of the frsutration means for each residue will be made
+If 2 file given, frustration will be calculated for the monomers of the 2 files and a scatter-plot of the frustration means for each residue will be made
 
 python3 frustration_plots.py path/to/file1.pdb path/to/file2.pdb 
 
@@ -66,7 +66,9 @@ def extract_info_from_filename(pdb_file):
             "1. '.../MtEnc_<number>.pdb'\n"
             "2. '.../MtEnc_monomer_<number>.pdb'\n"
             "3. Same with TmEnc\n"
-            "where <number> is one or more digits."
+            "where <number> is one or more digits.\n"
+            "If you're tring to use an option, make sure is write in the correct format:\n"
+            "-option=value"
         )
 #2.
 def load_monomers(pdb_file):
@@ -1015,9 +1017,30 @@ def plot_barplot_percentage_frustration_types(plots_dir, dico_mean_type_1 , dico
     plt.close()
 
 
+def parse_arguments():
+    """Parse command line arguments including optional -vmd and -frustration flags"""
+    vmd_flag = False
+    frustration_flag = False
+    pdb_files = []
+
+    for arg in sys.argv[1:]:
+        if arg.startswith('-vmd='):
+            vmd_value = arg.split('=')[1].lower()
+            if vmd_value == 'true':
+                vmd_flag = True
+        elif arg.startswith('-frustration='):
+            frustration_value = arg.split('=')[1].lower()
+            if frustration_value == 'true':
+                frustration_flag = True
+        else:
+            pdb_files.append(arg)
+
+    return pdb_files, vmd_flag, frustration_flag
+
 #when only a file given
-def main(pdb_file1):
+def main(pdb_file1, vmd_flag= False, frustration_flag=False ):
     start_time = time.time()
+    print(pdb_file1)
     # 1. Extract the type (MtEnc/TmEnc) and number (t) from the filename
     enc_type, enc_number = extract_info_from_filename(pdb_file1)
 
@@ -1026,7 +1049,7 @@ def main(pdb_file1):
     capsids_dir = f"{enc_type.upper()}_CAPSIDS"
     monomer_dir = "FRUSTRATION_monomer_for_a_frame"
     results_pdb_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_monomers")
-    results_frustration_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_frustration")
+    results_frustration_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_frustration_seqdist_12")
 
     plots_dir = os.path.join("../plots", enc_type, "frustration")
 
@@ -1043,7 +1066,10 @@ def main(pdb_file1):
     save_each_monomer_as_pdb(monomers, results_pdb_dir, enc_type, enc_number)
 
     # 4. calculation of frustration
-    #calculate_frustration(results_pdb_dir, results_frustration_dir)
+    if frustration_flag:
+        # 4. calculation of frustration
+        calculate_frustration(results_pdb_dir, results_frustration_dir)
+
 
     #6
     dico_monomers = dico_of_dico_frustIndex(results_frustration_dir)
@@ -1082,7 +1108,7 @@ def main(pdb_file1):
 
 
 #when 2 files given in parameters
-def main2(pdb_file1, pdb_file2):
+def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False):
 
     start_time = time.time()
 
@@ -1096,13 +1122,13 @@ def main2(pdb_file1, pdb_file2):
     capsids_dir1 = f"{enc_type1.upper()}_CAPSIDS"
     monomer_dir = "FRUSTRATION_monomer_for_a_frame"
     results_pdb_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_monomers")
-    results_frustration_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_frustration")
+    results_frustration_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_frustration_seqdist_12")
 
     frustration_dir2 = f"FRUSTRATION_{enc_type2.upper()}"
     capsids_dir2 = f"{enc_type2.upper()}_CAPSIDS"
     monomer_dir = "FRUSTRATION_monomer_for_a_frame"
     results_pdb_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_monomers")
-    results_frustration_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_frustration")
+    results_frustration_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_frustration_seqdist_12")
 
     plots_dir = os.path.join("../plots", "COMMON", "frustration")
 
@@ -1127,8 +1153,9 @@ def main2(pdb_file1, pdb_file2):
     save_each_monomer_as_pdb(monomers2, results_pdb_dir2, enc_type2, enc_number2)
 
     # 4. calculation of frustration
-    #calculate_frustration(results_pdb_dir1, results_frustration_dir1)
-    #calculate_frustration(results_pdb_dir2, results_frustration_dir2)
+    if frustration_flag :
+        calculate_frustration(results_pdb_dir1, results_frustration_dir1)
+        calculate_frustration(results_pdb_dir2, results_frustration_dir2)
 
     #6
     dico_monomers1 = dico_of_dico_frustIndex(results_frustration_dir1)
@@ -1192,7 +1219,7 @@ def main2(pdb_file1, pdb_file2):
     #color_structure_by_index(colors,  results_pdb_dir1, results_pdb_dir2)
 
     #plot visualisation
-    visualization_VMD_script(results_pdb_dir1, results_pdb_dir2, enc_type1, enc_type2, enc_number1, enc_number2, green_num, red_num, grey_num, yellow_num, goldenrod_num, False)
+    visualization_VMD_script(results_pdb_dir1, results_pdb_dir2, enc_type1, enc_type2, enc_number1, enc_number2, green_num, red_num, grey_num, yellow_num, goldenrod_num, vmd_flag)
 
     # % of frustration type
     dico_types_1 = dico_percentage_frustration_types(dico_monomers1)
@@ -1215,24 +1242,27 @@ def main2(pdb_file1, pdb_file2):
     print(f"Temps d'exécution: {execution_time:.2f} secondes")
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2 and len(sys.argv) != 3:
-        print("Usage: python3 frustration_plots.py path/to/encapsulin.pdb \n or python3 frustration_plots.py path/to/encapsulin1.pdb path/to/encapsulin2.pdb")
+    pdb_files, vmd_flag, frustration_flag = parse_arguments()
+
+    if len(pdb_files) == 1:
+        try:
+            main(pdb_files[0], vmd_flag=vmd_flag, frustration_flag=frustration_flag)
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            sys.exit(1)
+    elif len(pdb_files) == 2:
+        try:
+            main2(pdb_files[0], pdb_files[1], vmd_flag=vmd_flag, frustration_flag=frustration_flag)
+        except ValueError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            sys.exit(1)
+    else:
+        print("Usage: python3 structural_align.py path/to/encapsulin.pdb [-vmd=True] [-frustration=True]")
+        print("Or: python3 structural_align.py path/to/encapsulin1.pdb path/to/encapsulin2.pdb [-vmd=True] [-frustration=True]")
         sys.exit(1)
-    elif len(sys.argv) ==2:
-        try:
-            main(sys.argv[1])
-        except ValueError as e:
-            print(f"Error: {e}")
-            sys.exit(1)
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            sys.exit(1)
-    elif len(sys.argv) ==3:
-        try:
-            main2(sys.argv[1], sys.argv[2])
-        except ValueError as e:
-            print(f"Error: {e}")
-            sys.exit(1)
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            sys.exit(1)
