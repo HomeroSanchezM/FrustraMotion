@@ -148,7 +148,7 @@ def save_each_monomer_as_pdb(list_of_monomers, output_dir, enc_type1 , enc_numbe
             io.save(output_file)
             print(f"Monomer {i} save in {output_file}")
 #4 frustratometeR
-def calculate_frustration(PDB_directory, output_directory):
+def calculate_frustration(PDB_directory, output_directory, seqdist_flag):
 
     """
     this function call the R package FrustratometeR for the calculation of frustration.
@@ -172,7 +172,7 @@ def calculate_frustration(PDB_directory, output_directory):
     output_dir <- "{output_dir}"
 
     # Calculer la frustration
-    results <- calculate_frustration(PdbFile = pdb_file, Mode = "singleresidue", ResultsDir = output_dir, Graphics = FALSE)
+    results <- calculate_frustration(PdbFile = pdb_file, Mode = "singleresidue", SeqDist = {seqdist}, ResultsDir = output_dir, Graphics = FALSE)
 
     """
 
@@ -185,7 +185,8 @@ def calculate_frustration(PDB_directory, output_directory):
             # Personnaliser le script R pour ce fichier
             current_script = r_script.format(
                 pdb_file=full_path,
-                output_dir=output_directory
+                output_dir=output_directory,
+                seqdist=seqdist_flag
             )
             #print(current_script)
             # Écrire le script temporaire
@@ -1021,6 +1022,7 @@ def parse_arguments():
     """Parse command line arguments including optional -vmd and -frustration flags"""
     vmd_flag = False
     frustration_flag = False
+    seqdist_flag = 12
     pdb_files = []
 
     for arg in sys.argv[1:]:
@@ -1032,13 +1034,15 @@ def parse_arguments():
             frustration_value = arg.split('=')[1].lower()
             if frustration_value == 'true':
                 frustration_flag = True
+        elif arg.startswith('-seqdist='):
+            seqdist_flag = arg.split('=')[1]
         else:
             pdb_files.append(arg)
 
-    return pdb_files, vmd_flag, frustration_flag
+    return pdb_files, vmd_flag, frustration_flag, seqdist_flag
 
 #when only a file given
-def main(pdb_file1, vmd_flag= False, frustration_flag=False ):
+def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12 ):
     start_time = time.time()
     print(pdb_file1)
     # 1. Extract the type (MtEnc/TmEnc) and number (t) from the filename
@@ -1049,7 +1053,7 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False ):
     capsids_dir = f"{enc_type.upper()}_CAPSIDS"
     monomer_dir = "FRUSTRATION_monomer_for_a_frame"
     results_pdb_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_monomers")
-    results_frustration_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_frustration_seqdist_12")
+    results_frustration_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_frustration_seqdist_{seqdist_flag}")
 
     plots_dir = os.path.join("../plots", enc_type, "frustration")
 
@@ -1068,7 +1072,7 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False ):
     # 4. calculation of frustration
     if frustration_flag:
         # 4. calculation of frustration
-        calculate_frustration(results_pdb_dir, results_frustration_dir)
+        calculate_frustration(results_pdb_dir, results_frustration_dir, seqdist_flag)
 
 
     #6
@@ -1108,7 +1112,7 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False ):
 
 
 #when 2 files given in parameters
-def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False):
+def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdistflag = 12):
 
     start_time = time.time()
 
@@ -1122,13 +1126,13 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False):
     capsids_dir1 = f"{enc_type1.upper()}_CAPSIDS"
     monomer_dir = "FRUSTRATION_monomer_for_a_frame"
     results_pdb_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_monomers")
-    results_frustration_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_frustration_seqdist_12")
+    results_frustration_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_frustration_seqdist_{seqdist_flag}")
 
     frustration_dir2 = f"FRUSTRATION_{enc_type2.upper()}"
     capsids_dir2 = f"{enc_type2.upper()}_CAPSIDS"
     monomer_dir = "FRUSTRATION_monomer_for_a_frame"
     results_pdb_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_monomers")
-    results_frustration_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_frustration_seqdist_12")
+    results_frustration_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_frustration_seqdist_{seqdist_flag}")
 
     plots_dir = os.path.join("../plots", "COMMON", "frustration")
 
@@ -1154,8 +1158,8 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False):
 
     # 4. calculation of frustration
     if frustration_flag :
-        calculate_frustration(results_pdb_dir1, results_frustration_dir1)
-        calculate_frustration(results_pdb_dir2, results_frustration_dir2)
+        calculate_frustration(results_pdb_dir1, results_frustration_dir1, seqdistflag)
+        calculate_frustration(results_pdb_dir2, results_frustration_dir2, seqdist_flag)
 
     #6
     dico_monomers1 = dico_of_dico_frustIndex(results_frustration_dir1)
@@ -1242,11 +1246,11 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False):
     print(f"Temps d'exécution: {execution_time:.2f} secondes")
 
 if __name__ == "__main__":
-    pdb_files, vmd_flag, frustration_flag = parse_arguments()
+    pdb_files, vmd_flag, frustration_flag, seqdist_flag = parse_arguments()
 
     if len(pdb_files) == 1:
         try:
-            main(pdb_files[0], vmd_flag=vmd_flag, frustration_flag=frustration_flag)
+            main(pdb_files[0], vmd_flag=vmd_flag, frustration_flag=frustration_flag, seqdist_flag= seqdist_flag)
         except ValueError as e:
             print(f"Error: {e}")
             sys.exit(1)
@@ -1255,7 +1259,7 @@ if __name__ == "__main__":
             sys.exit(1)
     elif len(pdb_files) == 2:
         try:
-            main2(pdb_files[0], pdb_files[1], vmd_flag=vmd_flag, frustration_flag=frustration_flag)
+            main2(pdb_files[0], pdb_files[1], vmd_flag=vmd_flag, frustration_flag=frustration_flag, seqdistflag=seqdist_flag)
         except ValueError as e:
             print(f"Error: {e}")
             sys.exit(1)
