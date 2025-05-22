@@ -313,8 +313,8 @@ def dico_percentage_frustration_types(dico_frames):
     Calculate the percentage of each frustration type for all frames.
 
     Frustration types are defined as:
-    - high: frustration > 0.78
-    - minimal: frustration < -1
+    - minimal: frustration > 0.78
+    - high: frustration < -1
     - neutral: -1 ≤ frustration ≤ 0.78
 
     Args:
@@ -337,9 +337,9 @@ def dico_percentage_frustration_types(dico_frames):
         # Classify each residue
         for frustration in residue_data.values():
             if frustration > 0.78:
-                counts['high'] += 1
-            elif frustration < -1:
                 counts['minimal'] += 1
+            elif frustration < -1:
+                counts['high'] += 1
             else:
                 counts['neutral'] += 1
 
@@ -367,8 +367,8 @@ def dico_mean_percentage_frustration_types(dico_percentage):
 
     Returns:
         Dictionary with format
-            {'high': {'mean': float, 'std': float},
-             'minimal': {'mean': float, 'std': float},
+            {'minimal': {'mean': float, 'std': float},
+            'high': {'mean': float, 'std': float},
              'neutral': {'mean': float, 'std': float}}
     """
     # Initialize lists to collect all percentages for each type
@@ -378,19 +378,19 @@ def dico_mean_percentage_frustration_types(dico_percentage):
 
     # Collect all percentages
     for monomer_data in dico_percentage.values():
-        high_percents.append(monomer_data['high'])
         minimal_percents.append(monomer_data['minimal'])
+        high_percents.append(monomer_data['high'])
         neutral_percents.append(monomer_data['neutral'])
 
     # Calculate mean and std for each frustration type
     dico_mean_percentage = {
-        'high': {
-            'mean': round(float(np.mean(high_percents)), 2),
-            'std': round(float(np.std(high_percents)), 2)
-        },
         'minimal': {
             'mean': round(float(np.mean(minimal_percents)), 2),
             'std': round(float(np.std(minimal_percents)), 2)
+        },
+        'high': {
+            'mean': round(float(np.mean(high_percents)), 2),
+            'std': round(float(np.std(high_percents)), 2)
         },
         'neutral': {
             'mean': round(float(np.mean(neutral_percents)), 2),
@@ -754,15 +754,41 @@ add_residue_group $group5 5   ;# tan
             print("VMD not found. Please make sure VMD is installed and in your PATH.")
 
 
-def plot_barplot_percentage_frustration_types(plots_dir):
+def plot_barplot_percentage_frustration_types(plots_dir,dico_mean_type_1 , dico_mean_type_2, enc_type1, enc_type2, monomer_number):
         """
         Crée un barplot comparant les types de frustration entre MtEnc et TmEnc
         avec barres d'erreur pour les écarts-types.
+        :param plots_dir: dossier où sauvegarder le graphique
+        :param dico_mean_type_1: dictionnaire des stats pour MtEnc (format {'minimal': {'mean': x, 'std': y}, ...})
+        :param dico_mean_type_2: dictionnaire des stats pour TmEnc (même format)
         """
 
-          # Organized data
+        # Organized data
         categories = ['Minimal', 'High', 'Neutral']
 
+        # Données pour MtEnc (dico_mean_type_1)
+        mtenc_means = [
+            dico_mean_type_1['minimal']['mean'],
+            dico_mean_type_1['high']['mean'],
+            dico_mean_type_1['neutral']['mean']
+        ]
+        mtenc_stds = [
+            dico_mean_type_1['minimal']['std'],
+            dico_mean_type_1['high']['std'],
+            dico_mean_type_1['neutral']['std']
+        ]
+
+        # Données pour TmEnc (dico_mean_type_2)
+        tmenc_means = [
+            dico_mean_type_2['minimal']['mean'],
+            dico_mean_type_2['high']['mean'],
+            dico_mean_type_2['neutral']['mean']
+        ]
+        tmenc_stds = [
+            dico_mean_type_2['minimal']['std'],
+            dico_mean_type_2['high']['std'],
+            dico_mean_type_2['neutral']['std']
+        ]
          # MtEnc data
         mtenc_means = [10.37, 31.3, 58.33]
         mtenc_stds = [1.24, 1.17, 1.65]
@@ -809,7 +835,8 @@ def plot_barplot_percentage_frustration_types(plots_dir):
         # Afficher le plot
         plt.tight_layout()
           # Save plot
-        name_plot = f"frustration_barplot_per_frame.png"
+        name_plot = f"frustration_barplot_per_frame_{enc_type1}_monomer_{monomer_number}_vs_{enc_type2}_monomer_{monomer_number}.png"
+
         plot_path = os.path.join(plots_dir, name_plot)
         plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
         plt.close()
@@ -875,7 +902,7 @@ def main(pdb_directory, monomer_number):
     dico_mean_types = dico_mean_percentage_frustration_types(dico_types)
     print(dico_mean_types)
 
-    plot_barplot_percentage_frustration_types(plots_dir)
+
     end_time = time.time()
     execution_time = end_time - start_time
     print(f"Temps d'exécution: {execution_time:.2f} secondes")
@@ -998,7 +1025,22 @@ def main2(pdb_directory1, pdb_directory2, monomer_number):
     #print(goldenrod_list)
 
     # visualise mean frustration for each residue
-    visualization_VMD_script(results_pdb_dir1, results_pdb_dir2, enc_type1, enc_type2 ,monomer_number,green_num, red_num, grey_num, yellow_num, goldenrod_num, True)
+    visualization_VMD_script(results_pdb_dir1, results_pdb_dir2, enc_type1, enc_type2 ,monomer_number,green_num, red_num, grey_num, yellow_num, goldenrod_num, False)
+
+    # % of frustration type
+    dico_types_1 = dico_percentage_frustration_types(dico_monomers1)
+    #print(dico_types_1)
+    dico_types_2 = dico_percentage_frustration_types(dico_monomers2)
+    #print(dico_types_2)
+
+    # % of each type of frustration barplot
+
+    dico_mean_types_1 = dico_mean_percentage_frustration_types(dico_types_1)
+    #print(dico_mean_types_1)
+    dico_mean_types_2 = dico_mean_percentage_frustration_types(dico_types_2)
+    #print(dico_mean_types_2)
+
+    plot_barplot_percentage_frustration_types(plots_dir, dico_mean_types_1, dico_mean_types_2, enc_type1, enc_type2, monomer_number )
 
     end_time = time.time()
     execution_time = end_time - start_time

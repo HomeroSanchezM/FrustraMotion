@@ -271,12 +271,9 @@ def dico_percentage_frustration_types(dico_monomers):
 
     Frustration types are defined as:
 
-    *******
-    TO DO : invertir higth minimal
-    *******
 
-    - high: frustration > 0.78
-    - minimal: frustration < -1
+    - minimal: frustration > 0.78
+    - high: frustration < -1
     - neutral: -1 ≤ frustration ≤ 0.78
 
     Args:
@@ -299,9 +296,9 @@ def dico_percentage_frustration_types(dico_monomers):
         # Classify each residue
         for frustration in residue_data.values():
             if frustration > 0.78:
-                counts['high'] += 1
-            elif frustration < -1:
                 counts['minimal'] += 1
+            elif frustration < -1:
+                counts['high'] += 1
             else:
                 counts['neutral'] += 1
 
@@ -317,7 +314,7 @@ def dico_percentage_frustration_types(dico_monomers):
     return dico_percentage
 
 
-import numpy as np
+
 
 
 def dico_mean_percentage_frustration_types(dico_percentage):
@@ -330,9 +327,9 @@ def dico_mean_percentage_frustration_types(dico_percentage):
 
     Returns:
         Dictionary with format
-            {'high': {'mean': float, 'std': float},
-             'minimal': {'mean': float, 'std': float},
-             'neutral': {'mean': float, 'std': float}}
+            {'minimal': {'mean': float, 'std': float},
+            'high': {'mean': float, 'std': float},
+            'neutral': {'mean': float, 'std': float}}
     """
     # Initialize lists to collect all percentages for each type
     high_percents = []
@@ -341,19 +338,19 @@ def dico_mean_percentage_frustration_types(dico_percentage):
 
     # Collect all percentages
     for monomer_data in dico_percentage.values():
-        high_percents.append(monomer_data['high'])
         minimal_percents.append(monomer_data['minimal'])
+        high_percents.append(monomer_data['high'])
         neutral_percents.append(monomer_data['neutral'])
 
     # Calculate mean and std for each frustration type
     dico_mean_percentage = {
-        'high': {
-            'mean': round(float(np.mean(high_percents)), 2),
-            'std': round(float(np.std(high_percents)), 2)
-        },
         'minimal': {
             'mean': round(float(np.mean(minimal_percents)), 2),
             'std': round(float(np.std(minimal_percents)), 2)
+        },
+        'high': {
+            'mean': round(float(np.mean(high_percents)), 2),
+            'std': round(float(np.std(high_percents)), 2)
         },
         'neutral': {
             'mean': round(float(np.mean(neutral_percents)), 2),
@@ -938,61 +935,84 @@ add_residue_group $group5 5   ;# tan
 
 
 
-def plot_barplot_percentage_frustration_types(plots_dir):
-        """
-        Crée un barplot comparant les types de frustration entre MtEnc et TmEnc
-        avec barres d'erreur pour les écarts-types.
-        """
-        # Données organisées
-        categories = ['Minimal', 'High', 'Neutral']
-        mtenc_means = [11.48, 30.08, 55.11]
-        mtenc_stds = [2.49, 5.73, 10.38]
-        tmenc_means = [11.22, 34.79, 53.98]
-        tmenc_stds = [1.44, 1.42, 2.0]
+def plot_barplot_percentage_frustration_types(plots_dir, dico_mean_type_1 , dico_mean_type_2, enc_type1, enc_number1, enc_type2, enc_number2):
+    """
+    Crée un barplot comparant les types de frustration entre MtEnc et TmEnc
+    avec barres d'erreur pour les écarts-types
+    :param plots_dir: dossier où sauvegarder le graphique
+    :param dico_mean_type_1: dictionnaire des stats pour MtEnc (format {'minimal': {'mean': x, 'std': y}, ...})
+    :param dico_mean_type_2: dictionnaire des stats pour TmEnc (même format)
+    """
+    # Extraction des données depuis les dictionnaires
+    categories = ['Minimal', 'High', 'Neutral']
 
+    # Données pour MtEnc (dico_mean_type_1)
+    mtenc_means = [
+        dico_mean_type_1['minimal']['mean'],
+        dico_mean_type_1['high']['mean'],
+        dico_mean_type_1['neutral']['mean']
+    ]
+    mtenc_stds = [
+        dico_mean_type_1['minimal']['std'],
+        dico_mean_type_1['high']['std'],
+        dico_mean_type_1['neutral']['std']
+    ]
 
-        # Paramètres du graphique
-        bar_width = 0.35
-        index = np.arange(len(categories))
+    # Données pour TmEnc (dico_mean_type_2)
+    tmenc_means = [
+        dico_mean_type_2['minimal']['mean'],
+        dico_mean_type_2['high']['mean'],
+        dico_mean_type_2['neutral']['mean']
+    ]
+    tmenc_stds = [
+        dico_mean_type_2['minimal']['std'],
+        dico_mean_type_2['high']['std'],
+        dico_mean_type_2['neutral']['std']
+    ]
 
-        # Création du plot
-        plt.figure(figsize=(10, 6))
+    # Paramètres du graphique
+    bar_width = 0.35
+    index = np.arange(len(categories))
 
-        # Barres pour MtEnc
-        plt.bar(index - bar_width / 2, mtenc_means, bar_width,
-                yerr=mtenc_stds, capsize=5,
-                label='MtEnc', color='red')
+    # Création du plot
+    plt.figure(figsize=(10, 6))
 
-        # Barres pour TmEnc
-        plt.bar(index + bar_width / 2, tmenc_means, bar_width,
-                yerr=tmenc_stds, capsize=5,
-                label='TmEnc', color='goldenrod')
+    # Barres pour MtEnc
+    plt.bar(index - bar_width / 2, mtenc_means, bar_width,
+            yerr=mtenc_stds, capsize=5,
+            label='MtEnc', color='red')
 
-        # Personnalisation
-        plt.title('Comparison of Frustration Types between MtEnc and TmEnc', fontsize=14)
-        plt.xlabel('Frustration Type', fontsize=12)
-        plt.ylabel('Percentage (%)', fontsize=12)
-        plt.xticks(index, categories)
-        plt.ylim(0, 70)
+    # Barres pour TmEnc
+    plt.bar(index + bar_width / 2, tmenc_means, bar_width,
+            yerr=tmenc_stds, capsize=5,
+            label='TmEnc', color='goldenrod')
 
-        # Ajout des valeurs sur les barres
-        for i in range(len(categories)):
-            plt.text(i - bar_width / 2, mtenc_means[i] + 2, f'{mtenc_means[i]:.2f}%',
-                     ha='center', va='bottom')
-            plt.text(i + bar_width / 2, tmenc_means[i] + 2, f'{tmenc_means[i]:.2f}%',
-                     ha='center', va='bottom')
+    # Personnalisation
+    plt.title('Comparison of Frustration Types between MtEnc and TmEnc', fontsize=14)
+    plt.xlabel('Frustration Type', fontsize=12)
+    plt.ylabel('Percentage (%)', fontsize=12)
+    plt.xticks(index, categories)
+    plt.ylim(0, 70)
 
-        # Légende et grille
-        plt.legend(loc='upper right')
-        plt.grid(axis='y', linestyle='--', alpha=0.7)
+    # Ajout des valeurs sur les barres
+    for i in range(len(categories)):
+        plt.text(i - bar_width / 2, mtenc_means[i] + 2, f'{mtenc_means[i]:.2f}%',
+            ha='center', va='bottom')
+        plt.text(i + bar_width / 2, tmenc_means[i] + 2, f'{tmenc_means[i]:.2f}%',
+            ha='center', va='bottom')
 
-        # Afficher le plot
-        plt.tight_layout()
-          # Save plot
-        name_plot = f"frustration_barplot_per_res.png"
-        plot_path = os.path.join(plots_dir, name_plot)
-        plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
-        plt.close()
+    # Légende et grille
+    plt.legend(loc='upper right')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+    # Afficher le plot
+    plt.tight_layout()
+    # Save plot
+    name_plot = f"frustration_barplot_per_res_{enc_type1}_frame_{enc_number1}_vs_{enc_type2}_frame_{enc_number2}.png"
+
+    plot_path = os.path.join(plots_dir, name_plot)
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
 
 
 #when only a file given
@@ -1055,7 +1075,7 @@ def main(pdb_file1):
     dico_mean_types = dico_mean_percentage_frustration_types(dico_types)
     print(dico_mean_types)
 
-    plot_barplot_percentage_frustration_types(plots_dir)
+
     end_time = time.time()
     execution_time = end_time - start_time
     print(f"Temps d'exécution: {execution_time:.2f} secondes")
@@ -1172,7 +1192,23 @@ def main2(pdb_file1, pdb_file2):
     #color_structure_by_index(colors,  results_pdb_dir1, results_pdb_dir2)
 
     #plot visualisation
-    visualization_VMD_script(results_pdb_dir1, results_pdb_dir2, enc_type1, enc_type2, enc_number1, enc_number2, green_num, red_num, grey_num, yellow_num, goldenrod_num, True)
+    visualization_VMD_script(results_pdb_dir1, results_pdb_dir2, enc_type1, enc_type2, enc_number1, enc_number2, green_num, red_num, grey_num, yellow_num, goldenrod_num, False)
+
+    # % of frustration type
+    dico_types_1 = dico_percentage_frustration_types(dico_monomers1)
+    #print(dico_types_1)
+    dico_types_2 = dico_percentage_frustration_types(dico_monomers2)
+    #print(dico_types_2)
+
+    # % of each type of frustration barplot
+
+    dico_mean_types_1 = dico_mean_percentage_frustration_types(dico_types_1)
+    #print(dico_mean_types_1)
+    dico_mean_types_2 = dico_mean_percentage_frustration_types(dico_types_2)
+    #print(dico_mean_types_2)
+
+    plot_barplot_percentage_frustration_types(plots_dir, dico_mean_types_1, dico_mean_types_2, enc_type1, enc_number1, enc_type2, enc_number2 )
+
 
     end_time = time.time()
     execution_time = end_time - start_time
