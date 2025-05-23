@@ -177,7 +177,7 @@ def save_each_monomer_as_pdb(aligned_monomers, output_dir, enc_type, file_dict, 
 
 
 #4 frustratometeR
-def calculate_frustration(PDB_directory, output_directory):
+def calculate_frustration(PDB_directory, output_directory,seqdist_flag):
 
     """
     this function call the R package FrustratometeR for the calculation of frustration.
@@ -201,7 +201,7 @@ def calculate_frustration(PDB_directory, output_directory):
     output_dir <- "{output_dir}"
 
     # Calculer la frustration
-    results <- calculate_frustration(PdbFile = pdb_file, Mode = "singleresidue", ResultsDir = output_dir, Graphics = FALSE)
+    results <- calculate_frustration(PdbFile = pdb_file, Mode = "singleresidue", SeqDist = {seqdist}, ResultsDir = output_dir, Graphics = FALSE)
 
     """
 
@@ -214,7 +214,8 @@ def calculate_frustration(PDB_directory, output_directory):
             # Personnaliser le script R pour ce fichier
             current_script = r_script.format(
                 pdb_file=full_path,
-                output_dir=output_directory
+                output_dir=output_directory,
+                seqdist=seqdist_flag
             )
             #print(current_script)
             # Écrire le script temporaire
@@ -434,7 +435,7 @@ def dico_mean_frustration (dico_monomers) :
 
 
 
-def plot_frustration_per_res(dico, enc_type, monomer_number, plots_dir, file_dic):
+def plot_frustration_per_res(dico, enc_type, monomer_number, plots_dir, file_dic, seqdist_flag):
     """
     Plot mean frustration with standard deviation per residue, connecting dots with lines.
     Saves the plot as a PNG file in the specified directory.
@@ -473,7 +474,7 @@ def plot_frustration_per_res(dico, enc_type, monomer_number, plots_dir, file_dic
     plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.5)
 
     # Customize plot
-    plt.title(f'Mean Frustration per Residue ({enc_type}, Monomer {monomer_number}) for all the {len(file_dic)} frames', fontsize=10)
+    plt.title(f'Mean Frustration seqdist {seqdist_flag} per Residue ({enc_type}, Monomer {monomer_number}) for all the {len(file_dic)} frames', fontsize=10)
     plt.xlabel('Residue', fontsize=9)
     plt.ylabel('Mean Frustration', fontsize=9)
 
@@ -498,7 +499,7 @@ def plot_frustration_per_res(dico, enc_type, monomer_number, plots_dir, file_dic
     plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
 
-def plot_min_max_frustration_bars(dico_monomers, enc_type, monomer_number, plots_dir, file_dic):
+def plot_min_max_frustration_bars(dico_monomers, enc_type, monomer_number, plots_dir, file_dic, seqdist_flag):
     """
     Generate a plot showing vertical bars from min to max frustration values per residue.
 
@@ -552,7 +553,7 @@ def plot_min_max_frustration_bars(dico_monomers, enc_type, monomer_number, plots
     plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.8)
 
     # Customize plot
-    plt.title(f'Frustration Range per Residue ({enc_type}, Monomer {monomer_number}) for all the {len(file_dic)} frames')
+    plt.title(f'Frustration seqdist {seqdist_flag} Range per Residue ({enc_type}, Monomer {monomer_number}) for all the {len(file_dic)} frames')
     plt.xlabel('Residue')
     plt.ylabel('Frustration Value')
 
@@ -582,7 +583,7 @@ def plot_min_max_frustration_bars(dico_monomers, enc_type, monomer_number, plots
     plt.close()
 
 
-def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_type2, monomer_number, plots_dir, file_dict):
+def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_type2, monomer_number, plots_dir, file_dict, seqdist):
     """
     Create a scatter plot comparing mean frustration values between two conditions.
     Points are colored:
@@ -631,7 +632,7 @@ def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_type2, 
 
     # Customize plot with frame count in title
     plt.title(
-        f'Mean monomers frustration comparison\n{enc_type1} vs {enc_type2} for monomer {monomer_number}\n({len(file_dict)} frames analyzed)',
+        f'Mean monomers frustration seqdist {seqdist} comparison\n{enc_type1} vs {enc_type2} for monomer {monomer_number}\n({len(file_dict)} frames analyzed)',
         pad=20
     )
     plt.xlabel(f'Mean Frustration ({enc_type2} monomer {monomer_number})')
@@ -754,7 +755,7 @@ add_residue_group $group5 5   ;# tan
             print("VMD not found. Please make sure VMD is installed and in your PATH.")
 
 
-def plot_barplot_percentage_frustration_types(plots_dir,dico_mean_type_1 , dico_mean_type_2, enc_type1, enc_type2, monomer_number):
+def plot_barplot_percentage_frustration_types(plots_dir,dico_mean_type_1 , dico_mean_type_2, enc_type1, enc_type2, monomer_number, seqdist):
         """
         Crée un barplot comparant les types de frustration entre MtEnc et TmEnc
         avec barres d'erreur pour les écarts-types.
@@ -815,7 +816,7 @@ def plot_barplot_percentage_frustration_types(plots_dir,dico_mean_type_1 , dico_
                 label='TmEnc', color='goldenrod')
 
         # Personnalisation
-        plt.title('Comparison of Frustration Types between MtEnc and TmEnc', fontsize=14)
+        plt.title(f'Comparison of Frustration secdict {seqdist} between MtEnc and TmEnc', fontsize=14)
         plt.xlabel('Frustration Type', fontsize=12)
         plt.ylabel('Percentage (%)', fontsize=12)
         plt.xticks(index, categories)
@@ -845,7 +846,9 @@ def parse_arguments():
     """Parse command line arguments including optional -vmd and -frustration flags"""
     vmd_flag = False
     frustration_flag = False
+    seqdist_flag = 12
     pdb_files = []
+
     monomer_number = None
 
     for arg in sys.argv[1:]:
@@ -859,15 +862,17 @@ def parse_arguments():
                 frustration_flag = True
         elif arg.isdigit():
             monomer_number = arg
+        elif arg.startswith('-seqdist='):
+            seqdist_flag = arg.split('=')[1]
         else:
             pdb_files.append(arg)
 
     if not monomer_number:
         raise ValueError("Monomer number must be specified as a numeric argument")
 
-    return pdb_files, monomer_number, vmd_flag, frustration_flag
+    return pdb_files, monomer_number, vmd_flag, frustration_flag, seqdist_flag
 
-def main(pdb_directory, monomer_number, vmd_flag=False, frustration_flag=False):
+def main(pdb_directory, monomer_number, vmd_flag=False, frustration_flag=False, seqdist_flag = 12 ):
     start_time = time.time()
 
     #1.
@@ -884,9 +889,9 @@ def main(pdb_directory, monomer_number, vmd_flag=False, frustration_flag=False):
     capsids_dir = f"{enc_type.upper()}_CAPSIDS"
     frames_dir = "FRUSTRATION_frames_for_a_monomer"
     results_pdb_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,frames_dir, f"{enc_type}_monomer_{monomer_number}_monomers")
-    results_frustration_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,frames_dir, f"{enc_type}_monomer_{monomer_number}_frustration_seqdist_12")
+    results_frustration_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,frames_dir, f"{enc_type}_monomer_{monomer_number}_frustration_seqdist_{seqdist_flag}")
 
-    plots_dir = os.path.join("../plots", enc_type, "frustration")
+    plots_dir = os.path.join("../plots", enc_type, f"frustration_seqdist_{seqdist_flag}")
 
     #1.2 create the repository if it not exist
     os.makedirs(results_pdb_dir, exist_ok=True)
@@ -903,7 +908,7 @@ def main(pdb_directory, monomer_number, vmd_flag=False, frustration_flag=False):
 
     # 4. calculation of frustration
     if frustration_flag:
-        calculate_frustration(results_pdb_dir, results_frustration_dir)
+        calculate_frustration(results_pdb_dir, results_frustration_dir, seqdist_flag)
 
 
     #6
@@ -918,9 +923,9 @@ def main(pdb_directory, monomer_number, vmd_flag=False, frustration_flag=False):
     #print(dico_mean)
 
     #9
-    plot_frustration_per_res(dico_mean, enc_type, monomer_number, plots_dir, files_dict)
+    plot_frustration_per_res(dico_mean, enc_type, monomer_number, plots_dir, files_dict, seqdist_flag)
 
-    plot_min_max_frustration_bars(dico_monomers, enc_type, monomer_number, plots_dir, files_dict)
+    plot_min_max_frustration_bars(dico_monomers, enc_type, monomer_number, plots_dir, files_dict, seqdist_flag)
 
     # % of frustration type
     dico_types = dico_percentage_frustration_types(dico_monomers)
@@ -935,7 +940,7 @@ def main(pdb_directory, monomer_number, vmd_flag=False, frustration_flag=False):
     print(f"Temps d'exécution: {execution_time:.2f} secondes")
 
 #when 2 files given in parameters
-def main2(pdb_directory1, pdb_directory2, monomer_number,vmd_flag=False, frustration_flag=False ):
+def main2(pdb_directory1, pdb_directory2, monomer_number,vmd_flag=False, frustration_flag=False, seqdist_flag = 12 ):
 
     start_time = time.time()
 
@@ -957,16 +962,16 @@ def main2(pdb_directory1, pdb_directory2, monomer_number,vmd_flag=False, frustra
     capsids_dir1 = f"{enc_type1.upper()}_CAPSIDS"
     frames_dir = "FRUSTRATION_frames_for_a_monomer"
     results_pdb_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,frames_dir, f"{enc_type1}_monomer_{monomer_number}_monomers")
-    results_frustration_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,frames_dir, f"{enc_type1}_monomer_{monomer_number}_frustration")
+    results_frustration_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,frames_dir, f"{enc_type1}_monomer_{monomer_number}_frustration_seqdist_{seqdist_flag}")
 
     frustration_dir2 = f"FRUSTRATION_{enc_type2.upper()}"
     capsids_dir2 = f"{enc_type2.upper()}_CAPSIDS"
     frames_dir = "FRUSTRATION_frames_for_a_monomer"
     results_pdb_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,frames_dir, f"{enc_type2}_monomer_{monomer_number}_monomers")
-    results_frustration_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,frames_dir, f"{enc_type2}_monomer_{monomer_number}_frustration")
+    results_frustration_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,frames_dir, f"{enc_type2}_monomer_{monomer_number}_frustration_seqdist_{seqdist_flag}")
 
 
-    plots_dir = os.path.join("../plots", "COMMON", "frustration")
+    plots_dir = os.path.join("../plots", "COMMON", f"frustration_seqdist_{seqdist_flag}")
 
     #1.2 create the repository if it not exist
     os.makedirs(results_pdb_dir1, exist_ok=True)
@@ -989,8 +994,8 @@ def main2(pdb_directory1, pdb_directory2, monomer_number,vmd_flag=False, frustra
 
     # 4. calculation of frustration
     if frustration_flag:
-        calculate_frustration(results_pdb_dir1, results_frustration_dir1)
-        calculate_frustration(results_pdb_dir2, results_frustration_dir2)
+        calculate_frustration(results_pdb_dir1, results_frustration_dir1, seqdist_flag )
+        calculate_frustration(results_pdb_dir2, results_frustration_dir2, seqdist_flag )
 
 
     #6
@@ -1004,7 +1009,7 @@ def main2(pdb_directory1, pdb_directory2, monomer_number,vmd_flag=False, frustra
     #print(dico_mean2)
 
    # graphical view, scatter plot
-    colors = plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_type2, monomer_number, plots_dir, files_dict1)
+    colors = plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_type2, monomer_number, plots_dir, files_dict1, seqdist_flag)
     print(colors)
     green_list = []
     red_list = []
@@ -1069,31 +1074,45 @@ def main2(pdb_directory1, pdb_directory2, monomer_number,vmd_flag=False, frustra
     dico_mean_types_2 = dico_mean_percentage_frustration_types(dico_types_2)
     #print(dico_mean_types_2)
 
-    plot_barplot_percentage_frustration_types(plots_dir, dico_mean_types_1, dico_mean_types_2, enc_type1, enc_type2, monomer_number )
+    plot_barplot_percentage_frustration_types(plots_dir, dico_mean_types_1, dico_mean_types_2, enc_type1, enc_type2, monomer_number, seqdist_flag )
 
     end_time = time.time()
     execution_time = end_time - start_time
     print(f"Temps d'exécution: {execution_time:.2f} secondes")
 
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3 and len(sys.argv) != 4 :
-        print("Usage: python3 frustration_plots_multiples_files.py path/to/encapsulin.pdb number_of_wanted_monomer \n or python3 frustration_plots_multiples_files.py path/to/encapsulin1.pdb path/to/encapsulin2.pdb number_of_wanted_monomer")
+    try:
+        pdb_files, monomer_number, vmd_flag, frustration_flag, seqdist_flag = parse_arguments()
+
+        if len(pdb_files) == 1:
+            try:
+                main(pdb_files[0], monomer_number, vmd_flag=vmd_flag, frustration_flag=frustration_flag,seqdist_flag= seqdist_flag )
+            except ValueError as e:
+                print(f"Error: {e}")
+                sys.exit(1)
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+                sys.exit(1)
+        elif len(pdb_files) == 2:
+            try:
+                main2(pdb_files[0], pdb_files[1], monomer_number, vmd_flag=vmd_flag, frustration_flag=frustration_flag,seqdist_flag= seqdist_flag )
+            except ValueError as e:
+                print(f"Error: {e}")
+                sys.exit(1)
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+                sys.exit(1)
+        else:
+            print(
+                "Usage: python3 frustration_plots_multiples_files.py path/to/directory/ number_of_wanted_monomer [-vmd=True] [-frustration=True]")
+            print(
+                "Or: python3 frustration_plots_multiples_files.py path/to/directory1 path/to/directory2 number_of_wanted_monomer [-vmd=True] [-frustration=True]")
+            sys.exit(1)
+    except ValueError as e:
+        print(f"Error: {e}")
+        print(
+            "Usage: python3 frustration_plots_multiples_files.py path/to/directory/ number_of_wanted_monomer [-vmd=True] [-frustration=True]")
+        print(
+            "Or: python3 frustration_plots_multiples_files.py path/to/directory1 path/to/directory2 number_of_wanted_monomer [-vmd=True] [-frustration=True]")
         sys.exit(1)
-    elif len(sys.argv) ==3:
-        try:
-            main(sys.argv[1], sys.argv[2])
-        except ValueError as e:
-            print(f"Error: {e}")
-            sys.exit(1)
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            sys.exit(1)
-    elif len(sys.argv) ==4:
-        try:
-            main2(sys.argv[1], sys.argv[2], sys.argv[3])
-        except ValueError as e:
-            print(f"Error: {e}")
-            sys.exit(1)
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            sys.exit(1)
