@@ -1,3 +1,5 @@
+from curses.ascii import isdigit
+
 from Bio.PDB import *
 import numpy as np
 import warnings
@@ -12,8 +14,7 @@ import subprocess
 import matplotlib.patches as mpatches
 import seaborn as sns
 import pandas as pd
-
-
+from pandas.core.dtypes.inference import is_integer
 
 '''
 TO DO : 
@@ -1023,6 +1024,7 @@ def parse_arguments():
     vmd_flag = False
     frustration_flag = False
     seqdist_flag = 12
+    isolate_flag = True
     pdb_files = []
 
     for arg in sys.argv[1:]:
@@ -1030,90 +1032,122 @@ def parse_arguments():
             vmd_value = arg.split('=')[1].lower()
             if vmd_value == 'true':
                 vmd_flag = True
+            elif vmd_value == 'false':
+                vmd_flag = False
+            else :
+                raise ValueError(
+            f"the option -vmd expect a boolean (True or False), make sure is write in the correct format:\n"
+            "-option=value")
+
         elif arg.startswith('-frustration='):
             frustration_value = arg.split('=')[1].lower()
             if frustration_value == 'true':
                 frustration_flag = True
+            elif frustration_value == 'false':
+                frustration_flag = False
+            else:
+                 raise ValueError(
+            f"the option -frustration expect a boolean (True or False), make sure is write in the correct format:\n"
+            "-option=value")
+
         elif arg.startswith('-seqdist='):
             seqdist_flag = arg.split('=')[1]
+            try:
+                int(seqdist_flag)
+            except :
+                raise ValueError(
+            f"the option -seqdist expect a integer, make sure is write in the correct format:\n"
+            "-option=value")
+
+        elif arg.startswith('-isolate='):
+            isolate_value = arg.split('=')[1].lower()
+            if isolate_value == 'false':
+                isolate_flag = False
+            elif isolate_value == 'true':
+                isolate_flag = True
+            else :
+                raise ValueError(
+            f"the option -isolate expect a boolean (True or False), make sure is write in the correct format:\n"
+            "-option=value")
         else:
             pdb_files.append(arg)
 
-    return pdb_files, vmd_flag, frustration_flag, seqdist_flag
+    return pdb_files, vmd_flag, frustration_flag, seqdist_flag, isolate_flag
 
 #when only a file given
-def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12 ):
+def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, isolate_flag=True ):
     start_time = time.time()
-
     # 1. Extract the type (MtEnc/TmEnc) and number (t) from the filename
     enc_type, enc_number = extract_info_from_filename(pdb_file1)
+    if isolate_flag:
 
-    #1.1. create the output directory path
-    frustration_dir = f"FRUSTRATION_{enc_type.upper()}"
-    capsids_dir = f"{enc_type.upper()}_CAPSIDS"
-    monomer_dir = "FRUSTRATION_monomer_for_a_frame"
+        #1.1. create the output directory path
+        frustration_dir = f"FRUSTRATION_{enc_type.upper()}"
+        capsids_dir = f"{enc_type.upper()}_CAPSIDS"
+        monomer_dir = "FRUSTRATION_monomer_for_a_frame"
 
-    # all path of the actual direcory (ls -a)
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+        # all path of the actual direcory (ls -a)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # cd ..
-    base_dir = os.path.dirname(current_dir)
-    # cd results/
-    results_dir = os.path.join(base_dir, "results")
+        # cd ..
+        base_dir = os.path.dirname(current_dir)
+        # cd results/
+        results_dir = os.path.join(base_dir, "results")
 
-    results_pdb_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir, f"{enc_type}{enc_number}_monomers")
-    results_frustration_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir, f"{enc_type}{enc_number}_frustration_seqdist_{seqdist_flag}")
+        results_pdb_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir, f"{enc_type}{enc_number}_monomers")
+        results_frustration_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir, f"{enc_type}{enc_number}_frustration_seqdist_{seqdist_flag}")
 
-    plots_dir = os.path.join("../plots", enc_type, f"frustration_seqdist_{seqdist_flag}")
+        plots_dir = os.path.join("../plots", enc_type, f"frustration_seqdist_{seqdist_flag}")
 
-    #1.2 create the repository if it not exist
-    os.makedirs(results_pdb_dir, exist_ok=True)
-    os.makedirs(results_frustration_dir, exist_ok=True)
-    os.makedirs(plots_dir, exist_ok=True)
+        #1.2 create the repository if it not exist
+        os.makedirs(results_pdb_dir, exist_ok=True)
+        os.makedirs(results_frustration_dir, exist_ok=True)
+        os.makedirs(plots_dir, exist_ok=True)
 
-    # 2. Charger les monomères
-    monomers = load_monomers(pdb_file1)
-    print(f"Loaded {len(monomers)} monomers")
+        # 2. Charger les monomères
+        monomers = load_monomers(pdb_file1)
+        print(f"Loaded {len(monomers)} monomers")
 
-     # 3. create PDB files
-    save_each_monomer_as_pdb(monomers, results_pdb_dir, enc_type, enc_number)
+        # 3. create PDB files
+        save_each_monomer_as_pdb(monomers, results_pdb_dir, enc_type, enc_number)
 
-    # 4. calculation of frustration
-    if frustration_flag:
         # 4. calculation of frustration
-        calculate_frustration(results_pdb_dir, results_frustration_dir, seqdist_flag)
+        if frustration_flag:
+            # 4. calculation of frustration
+            calculate_frustration(results_pdb_dir, results_frustration_dir, seqdist_flag)
 
 
-    #6
-    dico_monomers = dico_of_dico_frustIndex(results_frustration_dir)
-    #print(dico_monomers)
+        #6
+        dico_monomers = dico_of_dico_frustIndex(results_frustration_dir)
+        #print(dico_monomers)
 
 
-    #7 grafical views
+        #7 grafical views
 
-    #plot_all_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
+        #plot_all_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
 
-    #8.
-    dico_mean = dico_mean_frustration(dico_monomers)
-    #print(dico_mean)
+        #8.
+        dico_mean = dico_mean_frustration(dico_monomers)
+        #print(dico_mean)
 
-    #9
-    plot_frustration_per_res(dico_mean, enc_type, enc_number, plots_dir, seqdist_flag)
+        #9
+        plot_frustration_per_res(dico_mean, enc_type, enc_number, plots_dir, seqdist_flag)
 
-    #10
-    #plot_min_and_max_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
-    plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir, seqdist_flag)
+        #10
+        #plot_min_and_max_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
+        plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir, seqdist_flag)
 
-    #dico_list = dico_list_frustration(dico_monomers)
-    #plot_frustration_boxplots(dico_list, enc_type, enc_number, plots_dir)
+        #dico_list = dico_list_frustration(dico_monomers)
+        #plot_frustration_boxplots(dico_list, enc_type, enc_number, plots_dir)
 
-    # % of frustration type
-    dico_types = dico_percentage_frustration_types(dico_monomers)
-    #print(dico_types)
+        # % of frustration type
+        dico_types = dico_percentage_frustration_types(dico_monomers)
+        #print(dico_types)
 
-    dico_mean_types = dico_mean_percentage_frustration_types(dico_types)
-    print(dico_mean_types)
-
+        dico_mean_types = dico_mean_percentage_frustration_types(dico_types)
+        print(dico_mean_types)
+    else:
+        print("Work in progress for isolate= False")
 
     end_time = time.time()
     execution_time = end_time - start_time
@@ -1263,11 +1297,12 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdis
     print(f"Temps d'exécution: {execution_time:.2f} secondes")
 
 if __name__ == "__main__":
-    pdb_files, vmd_flag, frustration_flag, seqdist_flag = parse_arguments()
+    pdb_files, vmd_flag, frustration_flag, seqdist_flag, isolate_flag = parse_arguments()
 
     if len(pdb_files) == 1:
         try:
-            main(pdb_files[0], vmd_flag=vmd_flag, frustration_flag=frustration_flag, seqdist_flag= seqdist_flag)
+            print(isolate_flag)
+            main(pdb_files[0], vmd_flag=vmd_flag, frustration_flag=frustration_flag, seqdist_flag= seqdist_flag, isolate_flag= isolate_flag)
         except ValueError as e:
             print(f"Error: {e}")
             sys.exit(1)
