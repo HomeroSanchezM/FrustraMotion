@@ -1052,8 +1052,17 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12 )
     frustration_dir = f"FRUSTRATION_{enc_type.upper()}"
     capsids_dir = f"{enc_type.upper()}_CAPSIDS"
     monomer_dir = "FRUSTRATION_monomer_for_a_frame"
-    results_pdb_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_monomers")
-    results_frustration_dir = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir, capsids_dir,monomer_dir, f"{enc_type}{enc_number}_frustration_seqdist_{seqdist_flag}")
+
+    # all path of the actual direcory (ls -a)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # cd ..
+    base_dir = os.path.dirname(current_dir)
+    # cd results/
+    results_dir = os.path.join(base_dir, "results")
+
+    results_pdb_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir, f"{enc_type}{enc_number}_monomers")
+    results_frustration_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir, f"{enc_type}{enc_number}_frustration_seqdist_{seqdist_flag}")
 
     plots_dir = os.path.join("../plots", enc_type, f"frustration_seqdist_{seqdist_flag}")
 
@@ -1122,17 +1131,25 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdis
 
     #1.1. create the output directories paths
 
+    # all path of the actual direcory (ls -a)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # cd ..
+    base_dir = os.path.dirname(current_dir)
+    # cd results/
+    results_dir = os.path.join(base_dir, "results")
+
     frustration_dir1 = f"FRUSTRATION_{enc_type1.upper()}"
     capsids_dir1 = f"{enc_type1.upper()}_CAPSIDS"
     monomer_dir = "FRUSTRATION_monomer_for_a_frame"
-    results_pdb_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_monomers")
-    results_frustration_dir1 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_frustration_seqdist_{seqdist_flag}")
+    results_pdb_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_monomers")
+    results_frustration_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_frustration_seqdist_{seqdist_flag}")
 
     frustration_dir2 = f"FRUSTRATION_{enc_type2.upper()}"
     capsids_dir2 = f"{enc_type2.upper()}_CAPSIDS"
     monomer_dir = "FRUSTRATION_monomer_for_a_frame"
-    results_pdb_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_monomers")
-    results_frustration_dir2 = os.path.join("/home/homero/Documentos/M1/S2/Stage/FrustraMotion/results", frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_frustration_seqdist_{seqdist_flag}")
+    results_pdb_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_monomers")
+    results_frustration_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_frustration_seqdist_{seqdist_flag}")
 
     plots_dir = os.path.join("../plots", "COMMON", f"frustration_seqdist_{seqdist_flag}")
 
