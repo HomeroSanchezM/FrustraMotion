@@ -721,7 +721,7 @@ add_residue_group $group1 19  ;# green2
 add_residue_group $group2 1   ;# red
 add_residue_group $group3 6   ;# silver
 add_residue_group $group4 4   ;# yellow
-add_residue_group $group5 5   ;# tan
+add_residue_group $group5 31   ;# orange
 """
 
     # Create output directories if they don't exist
@@ -755,7 +755,7 @@ add_residue_group $group5 5   ;# tan
             print("VMD not found. Please make sure VMD is installed and in your PATH.")
 
 
-def plot_barplot_percentage_frustration_types(plots_dir,dico_mean_type_1 , dico_mean_type_2, enc_type1, enc_type2, monomer_number, seqdist):
+def plot_barplot_percentage_frustration_types(plots_dir,dico_mean_type_1 , dico_mean_type_2, enc_type1, enc_type2, monomer_number, seqdist, file_dict):
         """
         Crée un barplot comparant les types de frustration entre MtEnc et TmEnc
         avec barres d'erreur pour les écarts-types.
@@ -790,13 +790,7 @@ def plot_barplot_percentage_frustration_types(plots_dir,dico_mean_type_1 , dico_
             dico_mean_type_2['high']['std'],
             dico_mean_type_2['neutral']['std']
         ]
-         # MtEnc data
-        mtenc_means = [10.37, 31.3, 58.33]
-        mtenc_stds = [1.24, 1.17, 1.65]
-
-        # TmEnc data
-        tmenc_means = [10.9, 33.87, 55.23]
-        tmenc_stds = [1.21, 1.27, 1.6]
+       
 
         # Paramètres du graphique
         bar_width = 0.35
@@ -816,7 +810,7 @@ def plot_barplot_percentage_frustration_types(plots_dir,dico_mean_type_1 , dico_
                 label='TmEnc', color='goldenrod')
 
         # Personnalisation
-        plt.title(f'Comparison of Frustration secdict {seqdist} between MtEnc and TmEnc', fontsize=14)
+        plt.title(f'Comparison of mean Frustration (secdict {seqdist}) type between MtEnc and TmEnc monomer {monomer_number} for {len(file_dict)} frames ', fontsize=14)
         plt.xlabel('Frustration Type', fontsize=12)
         plt.ylabel('Percentage (%)', fontsize=12)
         plt.xticks(index, categories)
@@ -1070,11 +1064,11 @@ def main2(pdb_directory1, pdb_directory2, monomer_number,vmd_flag=False, frustra
     # % of each type of frustration barplot
 
     dico_mean_types_1 = dico_mean_percentage_frustration_types(dico_types_1)
-    #print(dico_mean_types_1)
+    print(dico_mean_types_1)
     dico_mean_types_2 = dico_mean_percentage_frustration_types(dico_types_2)
-    #print(dico_mean_types_2)
+    print(dico_mean_types_2)
 
-    plot_barplot_percentage_frustration_types(plots_dir, dico_mean_types_1, dico_mean_types_2, enc_type1, enc_type2, monomer_number, seqdist_flag )
+    plot_barplot_percentage_frustration_types(plots_dir, dico_mean_types_1, dico_mean_types_2, enc_type1, enc_type2, monomer_number, seqdist_flag, files_dict1 )
 
     end_time = time.time()
     execution_time = end_time - start_time

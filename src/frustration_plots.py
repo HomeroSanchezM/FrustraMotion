@@ -903,7 +903,7 @@ add_residue_group $group1 19  ;# green2
 add_residue_group $group2 1   ;# red
 add_residue_group $group3 6   ;# silver
 add_residue_group $group4 4   ;# yellow
-add_residue_group $group5 5   ;# tan
+add_residue_group $group5 31   ;# orange
 """
 
     # Create output directories if they don't exist
@@ -991,7 +991,7 @@ def plot_barplot_percentage_frustration_types(plots_dir, dico_mean_type_1 , dico
             label='TmEnc', color='goldenrod')
 
     # Personnalisation
-    plt.title(f'Comparison of Frustration seqdist {seqdist_flag} Types between MtEnc and TmEnc', fontsize=14)
+    plt.title(f'Comparison of mean Frustration (seqdist {seqdist_flag}) types between MtEnc and TmEnc monomers', fontsize=14)
     plt.xlabel('Frustration Type', fontsize=12)
     plt.ylabel('Percentage (%)', fontsize=12)
     plt.xticks(index, categories)
@@ -1234,9 +1234,9 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdis
     # % of each type of frustration barplot
 
     dico_mean_types_1 = dico_mean_percentage_frustration_types(dico_types_1)
-    #print(dico_mean_types_1)
+    print(dico_mean_types_1)
     dico_mean_types_2 = dico_mean_percentage_frustration_types(dico_types_2)
-    #print(dico_mean_types_2)
+    print(dico_mean_types_2)
 
     plot_barplot_percentage_frustration_types(plots_dir, dico_mean_types_1, dico_mean_types_2, enc_type1, enc_number1, enc_type2, enc_number2, seqdist_flag )
 
