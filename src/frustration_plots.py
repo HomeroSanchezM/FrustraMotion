@@ -158,8 +158,8 @@ def calculate_frustration(PDB_directory, output_directory, seqdist_flag):
     """
 
     # check if directories exists
-    if not os.path.isdir(PDB_directory):
-        raise ValueError(f"PDB directory not found: {PDB_directory}")
+    #if not os.path.isdir(PDB_directory):
+    #    raise ValueError(f"PDB directory not found: {PDB_directory}")
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
 
@@ -179,32 +179,60 @@ def calculate_frustration(PDB_directory, output_directory, seqdist_flag):
 
     # Pour chaque fichier PDB dans le répertoire
     # TO DO make the frustration calculation in order for the files
-    for pdb_file in os.listdir(PDB_directory):
-        if pdb_file.endswith('.pdb'):
-            full_path = os.path.join(PDB_directory, pdb_file)
+    if os.path.isdir(PDB_directory):
+        for pdb_file in os.listdir(PDB_directory):
+            if pdb_file.endswith('.pdb'):
+                full_path = os.path.join(PDB_directory, pdb_file)
 
-            # Personnaliser le script R pour ce fichier
-            current_script = r_script.format(
-                pdb_file=full_path,
-                output_dir=output_directory,
-                seqdist=seqdist_flag
-            )
-            #print(current_script)
-            # Écrire le script temporaire
-            with open('temp_frustration.R', 'w') as f:
-                f.write(current_script)
+                # Personnaliser le script R pour ce fichier
+                current_script = r_script.format(
+                    pdb_file=full_path,
+                    output_dir=output_directory,
+                    seqdist=seqdist_flag
+                )
+                #print(current_script)
+                # Écrire le script temporaire
+                with open('temp_frustration.R', 'w') as f:
+                    f.write(current_script)
 
 
-            # Exécuter Rscript
-            try:
-                subprocess.run(['Rscript', 'temp_frustration.R'], check=True)
-                print(f"Successfully processed {pdb_file}")
-            except subprocess.CalledProcessError as e:
-                print(f"Error processing {pdb_file}: {e}")
-            finally:
-                # Nettoyer le fichier temporaire
-                if os.path.exists('temp_frustration.R'):
-                    os.remove('temp_frustration.R')
+                # Exécuter Rscript
+                try:
+                    subprocess.run(['Rscript', 'temp_frustration.R'], check=True)
+                    print(f"Successfully processed {pdb_file}")
+                except subprocess.CalledProcessError as e:
+                    print(f"Error processing {pdb_file}: {e}")
+                finally:
+                    # Nettoyer le fichier temporaire
+                    if os.path.exists('temp_frustration.R'):
+                        os.remove('temp_frustration.R')
+    elif os.path.isfile(PDB_directory):
+        if PDB_directory.endswith('.pdb'):
+                full_path = os.path.join(PDB_directory)
+
+                # Personnaliser le script R pour ce fichier
+                current_script = r_script.format(
+                    pdb_file=full_path,
+                    output_dir=output_directory,
+                    seqdist=seqdist_flag
+                )
+                #print(current_script)
+                # Écrire le script temporaire
+                with open('temp_frustration.R', 'w') as f:
+                    f.write(current_script)
+
+
+                # Exécuter Rscript
+                try:
+                    subprocess.run(['Rscript', 'temp_frustration.R'], check=True)
+                    print(f"Successfully processed {pdb_file}")
+                except subprocess.CalledProcessError as e:
+                    print(f"Error processing {pdb_file}: {e}")
+                finally:
+                    # Nettoyer le fichier temporaire
+                    if os.path.exists('temp_frustration.R'):
+                        os.remove('temp_frustration.R')
+
 #5
 def dico_frustIndex(frustration_file):
     """
@@ -1159,6 +1187,13 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, 
         os.makedirs(results_frustration_dir, exist_ok=True)
         os.makedirs(plots_dir, exist_ok=True)
 
+        # 4. calculation of frustration
+        if frustration_flag:
+            # 4. calculation of frustration
+            calculate_frustration(pdb_file1, results_frustration_dir, seqdist_flag)
+
+
+
         print("Work in progress for isolate= False")
 
     end_time = time.time()
@@ -1333,7 +1368,6 @@ if __name__ == "__main__":
 
     if len(pdb_files) == 1:
         try:
-            print(isolate_flag)
             main(pdb_files[0], vmd_flag=vmd_flag, frustration_flag=frustration_flag, seqdist_flag= seqdist_flag, isolate_flag= isolate_flag)
         except ValueError as e:
             print(f"Error: {e}")
