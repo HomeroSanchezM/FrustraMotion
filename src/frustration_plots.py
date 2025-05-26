@@ -553,7 +553,7 @@ def dico_list_frustration (dico_monomers) :
 
     return dico_list
 
-def plot_frustration_per_res(dico, enc_type, enc_number, plots_dir, seqdist):
+def plot_frustration_per_res(dico, enc_type, enc_number, plots_dir, seqdist, isolate):
     """
     Plot mean frustration with standard deviation per residue, connecting dots with lines.
     Saves the plot as a PNG file in the specified directory.
@@ -592,7 +592,10 @@ def plot_frustration_per_res(dico, enc_type, enc_number, plots_dir, seqdist):
     plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.5)
 
     # Customize plot
-    plt.title(f'Mean Frustration seqdist {seqdist} per Residue ({enc_type}, frame {enc_number})', fontsize=10)
+    if isolate:
+        plt.title(f'Mean Frustration seqdist {seqdist} per Residue ({enc_type}, frame {enc_number}, isolate)', fontsize=10)
+    else :
+        plt.title(f'Mean Frustration seqdist {seqdist} per Residue ({enc_type}, frame {enc_number}, not isolate)', fontsize=10)
     plt.xlabel('Residue', fontsize=9)
     plt.ylabel('Mean Frustration', fontsize=9)
 
@@ -1220,7 +1223,7 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, 
         #print(dico_mean)
 
         #9
-        plot_frustration_per_res(dico_mean, enc_type, enc_number, plots_dir, seqdist_flag)
+        plot_frustration_per_res(dico_mean, enc_type, enc_number, plots_dir, seqdist_flag, isolate_flag)
 
         #10
         #plot_min_and_max_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
@@ -1251,8 +1254,10 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, 
             # 4. calculation of frustration
             calculate_frustration(pdb_file1, results_frustration_dir, seqdist_flag)
         dico_monomer = dico_of_dico_frustIndex_with_chains(results_frustration_dir)
-        print(dico_monomer)
-
+        #print(dico_monomer)
+        dico_mean = dico_mean_frustration(dico_monomer)
+        #print(dico_mean)
+        plot_frustration_per_res(dico_mean, enc_type, enc_number, plots_dir, seqdist_flag, isolate_flag)
 
         print("Work in progress for isolate= False")
 
@@ -1422,6 +1427,17 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdis
         if frustration_flag :
             calculate_frustration(pdb_file1, results_frustration_dir1, seqdist_flag)
             calculate_frustration(pdb_file2, results_frustration_dir2, seqdist_flag)
+
+        #6
+        dico_monomers1 = dico_of_dico_frustIndex_with_chains(results_frustration_dir1)
+        dico_monomers2 = dico_of_dico_frustIndex_with_chains(results_frustration_dir2)
+
+        #8.
+        dico_mean1 = dico_mean_frustration(dico_monomers1)
+        dico_mean2 = dico_mean_frustration(dico_monomers2)
+
+        # graphical view, scatter plot
+        colors = plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1, enc_type2, enc_number2, plots_dir, seqdist_flag)
         print("Work in progress for isolate= False")
 
     end_time = time.time()
