@@ -1155,7 +1155,7 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, 
 
 
 #when 2 files given in parameters
-def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdist_flag = 12):
+def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdist_flag = 12, isolate_flag=True):
 
     start_time = time.time()
 
@@ -1163,134 +1163,136 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdis
     enc_type1, enc_number1 = extract_info_from_filename(pdb_file1)
     enc_type2, enc_number2 = extract_info_from_filename(pdb_file2)
 
-    #1.1. create the output directories paths
+    if isolate_flag:
+        #1.1. create the output directories paths
 
-    # all path of the actual direcory (ls -a)
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+        # all path of the actual direcory (ls -a)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # cd ..
-    base_dir = os.path.dirname(current_dir)
-    # cd results/
-    results_dir = os.path.join(base_dir, "results")
+        # cd ..
+        base_dir = os.path.dirname(current_dir)
+        # cd results/
+        results_dir = os.path.join(base_dir, "results")
 
-    frustration_dir1 = f"FRUSTRATION_{enc_type1.upper()}"
-    capsids_dir1 = f"{enc_type1.upper()}_CAPSIDS"
-    monomer_dir = "FRUSTRATION_monomer_for_a_frame"
-    results_pdb_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_monomers")
-    results_frustration_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_frustration_seqdist_{seqdist_flag}")
+        frustration_dir1 = f"FRUSTRATION_{enc_type1.upper()}"
+        capsids_dir1 = f"{enc_type1.upper()}_CAPSIDS"
+        monomer_dir = "FRUSTRATION_monomer_for_a_frame"
+        results_pdb_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_monomers")
+        results_frustration_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_frustration_seqdist_{seqdist_flag}")
 
-    frustration_dir2 = f"FRUSTRATION_{enc_type2.upper()}"
-    capsids_dir2 = f"{enc_type2.upper()}_CAPSIDS"
-    monomer_dir = "FRUSTRATION_monomer_for_a_frame"
-    results_pdb_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_monomers")
-    results_frustration_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_frustration_seqdist_{seqdist_flag}")
+        frustration_dir2 = f"FRUSTRATION_{enc_type2.upper()}"
+        capsids_dir2 = f"{enc_type2.upper()}_CAPSIDS"
+        monomer_dir = "FRUSTRATION_monomer_for_a_frame"
+        results_pdb_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_monomers")
+        results_frustration_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_frustration_seqdist_{seqdist_flag}")
 
-    plots_dir = os.path.join("../plots", "COMMON", f"frustration_seqdist_{seqdist_flag}")
+        plots_dir = os.path.join("../plots", "COMMON", f"frustration_seqdist_{seqdist_flag}")
 
-    #1.2 create the repository if it not exist
-    os.makedirs(results_pdb_dir1, exist_ok=True)
-    os.makedirs(results_frustration_dir1, exist_ok=True)
-    os.makedirs(results_pdb_dir2, exist_ok=True)
-    os.makedirs(results_frustration_dir2, exist_ok=True)
+        #1.2 create the repository if it not exist
+        os.makedirs(results_pdb_dir1, exist_ok=True)
+        os.makedirs(results_frustration_dir1, exist_ok=True)
+        os.makedirs(results_pdb_dir2, exist_ok=True)
+        os.makedirs(results_frustration_dir2, exist_ok=True)
 
-    os.makedirs(plots_dir, exist_ok=True)
+        os.makedirs(plots_dir, exist_ok=True)
 
-    # 2. Charger les monomères
-    monomers1 = load_monomers(pdb_file1)
-    print(f"Loaded {len(monomers1)} monomers")
+        # 2. Charger les monomères
+        monomers1 = load_monomers(pdb_file1)
+        print(f"Loaded {len(monomers1)} monomers")
 
-    monomers2 = load_monomers(pdb_file2)
-    print(f"Loaded {len(monomers2)} monomers")
-
-
-     # 3. create PDB files
-    save_each_monomer_as_pdb(monomers1, results_pdb_dir1, enc_type1, enc_number1)
-    save_each_monomer_as_pdb(monomers2, results_pdb_dir2, enc_type2, enc_number2)
-
-    # 4. calculation of frustration
-    if frustration_flag :
-        calculate_frustration(results_pdb_dir1, results_frustration_dir1, seqdist_flag)
-        calculate_frustration(results_pdb_dir2, results_frustration_dir2, seqdist_flag)
-
-    #6
-    dico_monomers1 = dico_of_dico_frustIndex(results_frustration_dir1)
-    dico_monomers2 = dico_of_dico_frustIndex(results_frustration_dir2)
-
-    #8.
-    dico_mean1 = dico_mean_frustration(dico_monomers1)
-    dico_mean2 = dico_mean_frustration(dico_monomers2)
+        monomers2 = load_monomers(pdb_file2)
+        print(f"Loaded {len(monomers2)} monomers")
 
 
-   # graphical view, scatter plot
-    colors = plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1, enc_type2, enc_number2, plots_dir, seqdist_flag)
-    #print(colors)
-    green_list = []
-    red_list = []
-    grey_list = []
-    yellow_list = []
-    goldenrod_list = []
-    for k in range(len(colors)):
-        if colors[k] == "green" :
-            green_list.append(k+1)
-        elif colors[k] == "red" :
-            red_list.append(k+1)
-        elif colors[k] == "grey" :
-            grey_list.append(k+1)
-        elif colors[k] == "yellow" :
-            yellow_list.append(k+1)
-        elif colors[k] == "goldenrod" :
-            goldenrod_list.append(k+1)
-    green_num = ""
-    for num in green_list :
-        green_num+=str(num)+" "
-    #print( green_num)
+         # 3. create PDB files
+        save_each_monomer_as_pdb(monomers1, results_pdb_dir1, enc_type1, enc_number1)
+        save_each_monomer_as_pdb(monomers2, results_pdb_dir2, enc_type2, enc_number2)
 
-    red_num = ""
-    for num in red_list :
-        red_num+=str(num)+" "
-    #print( red_num)
+        # 4. calculation of frustration
+        if frustration_flag :
+            calculate_frustration(results_pdb_dir1, results_frustration_dir1, seqdist_flag)
+            calculate_frustration(results_pdb_dir2, results_frustration_dir2, seqdist_flag)
 
-    grey_num = ""
-    for num in grey_list :
-        grey_num+=str(num)+" "
-    #print( grey_num)
+        #6
+        dico_monomers1 = dico_of_dico_frustIndex(results_frustration_dir1)
+        dico_monomers2 = dico_of_dico_frustIndex(results_frustration_dir2)
 
-    yellow_num = ""
-    for num in yellow_list :
-        yellow_num+=str(num)+" "
-    #print( yellow_num)
+        #8.
+        dico_mean1 = dico_mean_frustration(dico_monomers1)
+        dico_mean2 = dico_mean_frustration(dico_monomers2)
 
-    goldenrod_num = ""
-    for num in goldenrod_list :
-        goldenrod_num+=str(num)+" "
-    #print( goldenrod_num)
 
-    #print(green_list)
-    #print(red_list)
-    #print(grey_list)
-    #print(yellow_list)
-    #print(goldenrod_list)
-    #coloring structure
-    #color_structure_by_index(colors,  results_pdb_dir1, results_pdb_dir2)
+       # graphical view, scatter plot
+        colors = plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1, enc_type2, enc_number2, plots_dir, seqdist_flag)
+        #print(colors)
+        green_list = []
+        red_list = []
+        grey_list = []
+        yellow_list = []
+        goldenrod_list = []
+        for k in range(len(colors)):
+            if colors[k] == "green" :
+                green_list.append(k+1)
+            elif colors[k] == "red" :
+                red_list.append(k+1)
+            elif colors[k] == "grey" :
+                grey_list.append(k+1)
+            elif colors[k] == "yellow" :
+                yellow_list.append(k+1)
+            elif colors[k] == "goldenrod" :
+                goldenrod_list.append(k+1)
+        green_num = ""
+        for num in green_list :
+            green_num+=str(num)+" "
+        #print( green_num)
 
-    #plot visualisation
-    visualization_VMD_script(results_pdb_dir1, results_pdb_dir2, enc_type1, enc_type2, enc_number1, enc_number2, green_num, red_num, grey_num, yellow_num, goldenrod_num, vmd_flag)
+        red_num = ""
+        for num in red_list :
+            red_num+=str(num)+" "
+        #print( red_num)
 
-    # % of frustration type
-    dico_types_1 = dico_percentage_frustration_types(dico_monomers1)
-    #print(dico_types_1)
-    dico_types_2 = dico_percentage_frustration_types(dico_monomers2)
-    #print(dico_types_2)
+        grey_num = ""
+        for num in grey_list :
+            grey_num+=str(num)+" "
+        #print( grey_num)
 
-    # % of each type of frustration barplot
+        yellow_num = ""
+        for num in yellow_list :
+            yellow_num+=str(num)+" "
+        #print( yellow_num)
 
-    dico_mean_types_1 = dico_mean_percentage_frustration_types(dico_types_1)
-    print(dico_mean_types_1)
-    dico_mean_types_2 = dico_mean_percentage_frustration_types(dico_types_2)
-    print(dico_mean_types_2)
+        goldenrod_num = ""
+        for num in goldenrod_list :
+            goldenrod_num+=str(num)+" "
+        #print( goldenrod_num)
 
-    plot_barplot_percentage_frustration_types(plots_dir, dico_mean_types_1, dico_mean_types_2, enc_type1, enc_number1, enc_type2, enc_number2, seqdist_flag )
+        #print(green_list)
+        #print(red_list)
+        #print(grey_list)
+        #print(yellow_list)
+        #print(goldenrod_list)
+        #coloring structure
+        #color_structure_by_index(colors,  results_pdb_dir1, results_pdb_dir2)
 
+        #plot visualisation
+        visualization_VMD_script(results_pdb_dir1, results_pdb_dir2, enc_type1, enc_type2, enc_number1, enc_number2, green_num, red_num, grey_num, yellow_num, goldenrod_num, vmd_flag)
+
+        # % of frustration type
+        dico_types_1 = dico_percentage_frustration_types(dico_monomers1)
+        #print(dico_types_1)
+        dico_types_2 = dico_percentage_frustration_types(dico_monomers2)
+        #print(dico_types_2)
+
+        # % of each type of frustration barplot
+
+        dico_mean_types_1 = dico_mean_percentage_frustration_types(dico_types_1)
+        print(dico_mean_types_1)
+        dico_mean_types_2 = dico_mean_percentage_frustration_types(dico_types_2)
+        print(dico_mean_types_2)
+
+        plot_barplot_percentage_frustration_types(plots_dir, dico_mean_types_1, dico_mean_types_2, enc_type1, enc_number1, enc_type2, enc_number2, seqdist_flag )
+    else :
+        print("Work in progress for isolate= False")
 
     end_time = time.time()
     execution_time = end_time - start_time
@@ -1311,7 +1313,7 @@ if __name__ == "__main__":
             sys.exit(1)
     elif len(pdb_files) == 2:
         try:
-            main2(pdb_files[0], pdb_files[1], vmd_flag=vmd_flag, frustration_flag=frustration_flag, seqdist_flag=seqdist_flag)
+            main2(pdb_files[0], pdb_files[1], vmd_flag=vmd_flag, frustration_flag=frustration_flag, seqdist_flag=seqdist_flag, isolate_flag= isolate_flag)
         except ValueError as e:
             print(f"Error: {e}")
             sys.exit(1)
