@@ -1081,25 +1081,25 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, 
     start_time = time.time()
     # 1. Extract the type (MtEnc/TmEnc) and number (t) from the filename
     enc_type, enc_number = extract_info_from_filename(pdb_file1)
+    # 1.1. create the output directory path
+    frustration_dir = f"FRUSTRATION_{enc_type.upper()}"
+    capsids_dir = f"{enc_type.upper()}_CAPSIDS"
+    monomer_dir = "FRUSTRATION_monomer_for_a_frame"
+
+    # all path of the actual direcory (ls -a)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # cd ..
+    base_dir = os.path.dirname(current_dir)
+    # cd results/
+    results_dir = os.path.join(base_dir, "results")
+
     if isolate_flag:
 
-        #1.1. create the output directory path
-        frustration_dir = f"FRUSTRATION_{enc_type.upper()}"
-        capsids_dir = f"{enc_type.upper()}_CAPSIDS"
-        monomer_dir = "FRUSTRATION_monomer_for_a_frame"
-
-        # all path of the actual direcory (ls -a)
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # cd ..
-        base_dir = os.path.dirname(current_dir)
-        # cd results/
-        results_dir = os.path.join(base_dir, "results")
-
         results_pdb_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir, f"{enc_type}{enc_number}_monomers")
-        results_frustration_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir, f"{enc_type}{enc_number}_frustration_seqdist_{seqdist_flag}")
+        results_frustration_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir, f"{enc_type}{enc_number}_frustration_seqdist_{seqdist_flag}_isolate")
 
-        plots_dir = os.path.join("../plots", enc_type, f"frustration_seqdist_{seqdist_flag}")
+        plots_dir = os.path.join("../plots", enc_type, f"frustration_seqdist_{seqdist_flag}_isolate")
 
         #1.2 create the repository if it not exist
         os.makedirs(results_pdb_dir, exist_ok=True)
@@ -1149,6 +1149,16 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, 
         dico_mean_types = dico_mean_percentage_frustration_types(dico_types)
         print(dico_mean_types)
     else:
+
+        results_frustration_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir,
+                                               f"{enc_type}{enc_number}_frustration_seqdist_{seqdist_flag}_NOT_isolate")
+
+        plots_dir = os.path.join("../plots", enc_type, f"frustration_seqdist_{seqdist_flag}_NOT_isolate")
+
+        # 1.2 create the repository if it not exist
+        os.makedirs(results_frustration_dir, exist_ok=True)
+        os.makedirs(plots_dir, exist_ok=True)
+
         print("Work in progress for isolate= False")
 
     end_time = time.time()
@@ -1165,30 +1175,32 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdis
     enc_type1, enc_number1 = extract_info_from_filename(pdb_file1)
     enc_type2, enc_number2 = extract_info_from_filename(pdb_file2)
 
+    # 1.1. create the output directories paths
+
+    # all path of the actual direcory (ls -a)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # cd ..
+    base_dir = os.path.dirname(current_dir)
+    # cd results/
+    results_dir = os.path.join(base_dir, "results")
+
+    frustration_dir1 = f"FRUSTRATION_{enc_type1.upper()}"
+    capsids_dir1 = f"{enc_type1.upper()}_CAPSIDS"
+
+    frustration_dir2 = f"FRUSTRATION_{enc_type2.upper()}"
+    capsids_dir2 = f"{enc_type2.upper()}_CAPSIDS"
+
+    monomer_dir = "FRUSTRATION_monomer_for_a_frame"
     if isolate_flag:
-        #1.1. create the output directories paths
 
-        # all path of the actual direcory (ls -a)
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-
-        # cd ..
-        base_dir = os.path.dirname(current_dir)
-        # cd results/
-        results_dir = os.path.join(base_dir, "results")
-
-        frustration_dir1 = f"FRUSTRATION_{enc_type1.upper()}"
-        capsids_dir1 = f"{enc_type1.upper()}_CAPSIDS"
-        monomer_dir = "FRUSTRATION_monomer_for_a_frame"
         results_pdb_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_monomers")
-        results_frustration_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_frustration_seqdist_{seqdist_flag}")
+        results_frustration_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_frustration_seqdist_{seqdist_flag}_isolate")
 
-        frustration_dir2 = f"FRUSTRATION_{enc_type2.upper()}"
-        capsids_dir2 = f"{enc_type2.upper()}_CAPSIDS"
-        monomer_dir = "FRUSTRATION_monomer_for_a_frame"
         results_pdb_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_monomers")
-        results_frustration_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_frustration_seqdist_{seqdist_flag}")
+        results_frustration_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_frustration_seqdist_{seqdist_flag}_isolate")
 
-        plots_dir = os.path.join("../plots", "COMMON", f"frustration_seqdist_{seqdist_flag}")
+        plots_dir = os.path.join("../plots", "COMMON", f"frustration_seqdist_{seqdist_flag}_isolate")
 
         #1.2 create the repository if it not exist
         os.makedirs(results_pdb_dir1, exist_ok=True)
@@ -1294,6 +1306,22 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdis
 
         plot_barplot_percentage_frustration_types(plots_dir, dico_mean_types_1, dico_mean_types_2, enc_type1, enc_number1, enc_type2, enc_number2, seqdist_flag )
     else :
+
+        results_frustration_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1, monomer_dir,
+                                                f"{enc_type1}{enc_number1}_frustration_seqdist_{seqdist_flag}_NOT_isolate")
+
+        results_frustration_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2, monomer_dir,
+                                                f"{enc_type2}{enc_number2}_frustration_seqdist_{seqdist_flag}_NOT_isolate")
+
+        plots_dir = os.path.join("../plots", "COMMON", f"frustration_seqdist_{seqdist_flag}_NOT_isolate")
+
+        # 1.2 create the repository if it not exist
+
+        os.makedirs(results_frustration_dir1, exist_ok=True)
+
+        os.makedirs(results_frustration_dir2, exist_ok=True)
+
+        os.makedirs(plots_dir, exist_ok=True)
         print("Work in progress for isolate= False")
 
     end_time = time.time()
