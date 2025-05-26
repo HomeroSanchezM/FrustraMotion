@@ -272,7 +272,7 @@ def dico_frustIndex(frustration_file):
                 count += 1
 
     return frustration_dict
-#6
+
 def dico_of_dico_frustIndex(frustration_directory):
     """
     this function take the full path of the directory were the frustration results files are
@@ -295,6 +295,65 @@ def dico_of_dico_frustIndex(frustration_directory):
                 dico_monomers[number]= dico_monomer
 
     return dico_monomers
+
+def dico_frustIndex_with_chains(frustration_file):
+    """
+    Create a dictionary  with frustration indices from FrustratometeR output file.
+
+    Args:
+        frustration_file (str): Path to the frustration results file
+
+    Returns:
+        dict: {chainID:{residue_key: FrstIndex}} where residue_key is "AAresNum" (e.g. "M4")
+
+    Example output:
+        {'0':{'M4': 0.759, 'E5': -0.582, 'F6': 1.027, ...}, '1':{'M4': 0.87, 'E5': -0.465, 'F6': 1.754, ...}}
+    """
+    frustration_dict = {}
+
+    with open(frustration_file, 'r') as f:
+        # Skip header
+        next(f)
+
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+
+            parts = line.split()
+            if len(parts) >= 8:
+                res_num = parts[0]
+                chain_id = parts[1]
+                aa = parts[3]
+                frst_index = float(parts[7])
+
+                # Initialize chain dictionary if needed
+                if chain_id not in frustration_dict:
+                    frustration_dict[chain_id] = {}
+
+                # Add residue frustration
+                residue_key = f"{aa}{res_num}"
+                frustration_dict[chain_id][residue_key] = frst_index
+
+    return frustration_dict
+
+def dico_of_dico_frustIndex_with_chains(frustration_directory):
+    """
+    this function take the full path of the directory were the frustration results files are
+    And for each result, buit the dico of the residues frsutrationIndex, and add this to a big dico
+    dico = { (monomer)1: {'M4': 0.759, ...} , 2:... , ... }
+    :param frustration_directory:
+    :return:
+    """
+
+    for directory in os.listdir(frustration_directory) :
+        doc_path = os.path.join(frustration_directory, directory, "FrustrationData")
+        for file in os.listdir(doc_path):
+            if file.endswith("pdb_singleresidue"):
+                full_path = os.path.join(doc_path, file)
+                dico_monomer = dico_frustIndex_with_chains(full_path)
+
+    return dico_monomer
 
 
 def dico_percentage_frustration_types(dico_monomers):
@@ -1191,7 +1250,8 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, 
         if frustration_flag:
             # 4. calculation of frustration
             calculate_frustration(pdb_file1, results_frustration_dir, seqdist_flag)
-
+        dico_monomer = dico_of_dico_frustIndex_with_chains(results_frustration_dir)
+        print(dico_monomer)
 
 
         print("Work in progress for isolate= False")
@@ -1357,6 +1417,11 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdis
         os.makedirs(results_frustration_dir2, exist_ok=True)
 
         os.makedirs(plots_dir, exist_ok=True)
+
+         # 4. calculation of frustration
+        if frustration_flag :
+            calculate_frustration(pdb_file1, results_frustration_dir1, seqdist_flag)
+            calculate_frustration(pdb_file2, results_frustration_dir2, seqdist_flag)
         print("Work in progress for isolate= False")
 
     end_time = time.time()
