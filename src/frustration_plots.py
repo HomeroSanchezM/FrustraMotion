@@ -1069,6 +1069,8 @@ def parse_arguments():
                 raise ValueError(
             f"the option -isolate expect a boolean (True or False), make sure is write in the correct format:\n"
             "-option=value")
+
+
         else:
             pdb_files.append(arg)
 
