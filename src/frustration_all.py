@@ -2,6 +2,7 @@ import sys
 import os
 from frustration_plots import main
 from frustration_plots import parse_arguments
+from frustration_plots import extract_info_from_filename
 
 
 def main_all(pdb_directory, vmd_flag=False, frustration_flag=False, seqdist_flag=12, isolate_flag=True,
@@ -68,17 +69,32 @@ if __name__ == "__main__":
         # Check if the argument is a directory
         if os.path.isdir(pdb_files[0]):
             try:
-                # Define output file name based on directory
-                dir_name = os.path.basename(os.path.normpath(pdb_files[0]))
-                output_file = f"frustration_results_{dir_name}.txt"
+                 # 1. Extract the type (MtEnc/TmEnc) and number (t) from the filename
+                enc_type, enc_number = extract_info_from_filename(pdb_files[0])
+                # 1.1. create the output directory path
+                frustration_dir = f"FRUSTRATION_{enc_type.upper()}"
+                capsids_dir = f"{enc_type.upper()}_CAPSIDS"
+                monomer_dir = "FRUSTRATION_monomer_for_a_frame"
+                # all path of the actual direcory (ls -a)
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                # cd ..
+                base_dir = os.path.dirname(current_dir)
+                # cd results/
+                results_dir = os.path.join(base_dir, "results")
 
-                main_all(pdb_files[0],
+                if not isolate_flag:
+                    not_isolate_dir = "Not_Isolate"
+                    results_frustration_file = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir,not_isolate_dir,
+                                               f"{enc_type}{enc_number}_frustration_seqdist_{seqdist_flag}_NOT_isolate","frustration_data.txt")
+
+
+                    main_all(pdb_files[0],
                          vmd_flag=vmd_flag,
                          frustration_flag=frustration_flag,
                          seqdist_flag=seqdist_flag,
                          isolate_flag=isolate_flag,
                          plots_flag=plots_flag,
-                         output_file=output_file)
+                         output_file=results_frustration_file)
 
             except ValueError as e:
                 print(f"Error: {e}")
@@ -89,30 +105,47 @@ if __name__ == "__main__":
         else:
             # If it's a single file, process it and save to specific output file
             try:
-                base_name = os.path.splitext(os.path.basename(pdb_files[0]))[0]
-                output_file = f"frustration_results_{base_name}.txt"
 
-                # Open output file
-                with open(output_file, 'w') as f:
-                    # Write header
-                    header = "pdb_file\tchain\tresidue\tfrustration\n"
-                    f.write(header)
+                 # 1. Extract the type (MtEnc/TmEnc) and number (t) from the filename
+                enc_type, enc_number = extract_info_from_filename(pdb_files[0])
+                # 1.1. create the output directory path
+                frustration_dir = f"FRUSTRATION_{enc_type.upper()}"
+                capsids_dir = f"{enc_type.upper()}_CAPSIDS"
+                monomer_dir = "FRUSTRATION_monomer_for_a_frame"
+                # all path of the actual direcory (ls -a)
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                # cd ..
+                base_dir = os.path.dirname(current_dir)
+                # cd results/
+                results_dir = os.path.join(base_dir, "results")
 
-                    # Process file
-                    result = main(pdb_files[0],
-                                  vmd_flag=vmd_flag,
-                                  frustration_flag=frustration_flag,
-                                  seqdist_flag=seqdist_flag,
-                                  isolate_flag=isolate_flag,
-                                  plots_flag=plots_flag)
+                if not isolate_flag:
+                    not_isolate_dir = "Not_Isolate"
+                    results_frustration_file = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir,not_isolate_dir,
+                                               f"{enc_type}{enc_number}_frustration_seqdist_{seqdist_flag}_NOT_isolate","frustration_data.txt")
 
-                    # Write results
-                    for chain_id, residues in result.items():
-                        for residue, frustration in residues.items():
-                            line = f"{os.path.basename(pdb_files[0])}\t{chain_id}\t{residue}\t{frustration:.3f}\n"
-                            f.write(line)
 
-                print(f"Results saved to {output_file}")
+                    # Open output file
+                    with open(results_frustration_file, 'w') as f:
+                        # Write header
+                        header = "pdb_file\tchain\tresidue\tfrustration\n"
+                        f.write(header)
+
+                        # Process file
+                        result = main(pdb_files[0],
+                                      vmd_flag=vmd_flag,
+                                      frustration_flag=frustration_flag,
+                                      seqdist_flag=seqdist_flag,
+                                      isolate_flag=isolate_flag,
+                                      plots_flag=plots_flag)
+
+                        # Write results
+                        for chain_id, residues in result.items():
+                            for residue, frustration in residues.items():
+                                line = f"{os.path.basename(pdb_files[0])}\t{chain_id}\t{residue}\t{frustration:.3f}\n"
+                                f.write(line)
+
+                    print(f"Results saved to {results_frustration_file}")
 
             except ValueError as e:
                 print(f"Error: {e}")
