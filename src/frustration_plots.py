@@ -262,8 +262,14 @@ def dico_frustIndex(frustration_file):
 
             # Check we have enough columns (at least 8)
             if len(parts) >= 8:
-                res_num = count  # Residue number (4, 5, 6...)
+                res_num = count  # Residue number
                 aa = parts[3]  # Amino acid (M, E, F...)
+                #remplace the '?' with the correct AA f the data
+                if aa == '?':
+                    if count == 187 :
+                        aa = 'Tyr'
+                    if count == 50 :
+                        aa = 'Hsd'
                 frst_index = float(parts[7])  # FrstIndex value
 
                 # Create key like "M4" and add to dictionary
@@ -314,7 +320,7 @@ def dico_frustIndex_with_chains(frustration_file):
     with open(frustration_file, 'r') as f:
         # Skip header
         next(f)
-
+        count = 1
         for line in f:
             line = line.strip()
             if not line:
@@ -322,19 +328,26 @@ def dico_frustIndex_with_chains(frustration_file):
 
             parts = line.split()
             if len(parts) >= 8:
-                res_num = parts[0]
+                res_num = count
                 chain_id = parts[1]
                 aa = parts[3]
+                if aa == '?':
+                    if count == 187 :
+                        aa = 'Tyr'
+                    if count == 50 :
+                        aa = 'Hsd'
                 frst_index = float(parts[7])
 
                 # Initialize chain dictionary if needed
                 if chain_id not in frustration_dict:
                     frustration_dict[chain_id] = {}
-
+                    count = 1
+                    res_num = count
                 # Add residue frustration
                 residue_key = f"{aa}{res_num}"
                 frustration_dict[chain_id][residue_key] = frst_index
-
+                count += 1
+            #print(frustration_dict)
     return frustration_dict
 
 def dico_of_dico_frustIndex_with_chains(frustration_directory):
@@ -352,7 +365,7 @@ def dico_of_dico_frustIndex_with_chains(frustration_directory):
             if file.endswith("pdb_singleresidue"):
                 full_path = os.path.join(doc_path, file)
                 dico_monomer = dico_frustIndex_with_chains(full_path)
-
+                #print(dico_monomer)
     return dico_monomer
 
 
@@ -573,6 +586,19 @@ def plot_frustration_per_res(dico, enc_type, enc_number, plots_dir, seqdist, iso
     # Create a compact figure (smaller size)
     plt.figure(figsize=(16, 6))
 
+    # Highlight residues 186 to 187 (adjust indices if needed)
+    highlight_start = 186
+    highlight_end = 187
+
+    # Check if highlight range is valid
+    if highlight_start < len(residues) and highlight_end < len(residues):
+        # Add transparent red background for the highlighted region
+        plt.axvspan(
+            highlight_start - 0.5 , highlight_end + 0.5 ,  # -0.5 and +0.5 to cover whole residues
+            facecolor='red', alpha=0.2,  # Transparent red
+            label='Highlighted residues (184-189)'
+        )
+
     # Plot means with error bars for std and connect dots with lines
     plt.errorbar(
         range(len(residues)),  # Use numeric positions for better line connection
@@ -590,6 +616,7 @@ def plot_frustration_per_res(dico, enc_type, enc_number, plots_dir, seqdist, iso
 
     # Add horizontal line at y=0 for reference
     plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.5)
+
 
     # Customize plot
     if isolate:
@@ -874,6 +901,8 @@ def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1
     x_vals = []
     y_vals = []
 
+ # Get residue names list
+    residues = list(dico_mean1.keys())
  # Prepare data
     x_vals = [dico_mean2[res]['mean'] for res in dico_mean2.keys()]
     y_vals = [dico_mean1[res]['mean'] for res in dico_mean1.keys()]
@@ -895,6 +924,32 @@ def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1
 
     # Create scatter plot with colored points
     plt.scatter(x_vals, y_vals, c=colors, alpha=0.7, s=60, edgecolors='black', linewidths=0.5)
+
+    # Highlight points 184 to 189 with dark red outline and labels
+    highlight_indices = range(186, 188)  # 187 to 188 (Python ranges are exclusive on end)
+    if highlight_indices[-1] < len(residues):  # Check if indices are valid
+        # Plot highlighted points with dark red outline
+        plt.scatter(
+            [x_vals[i] for i in highlight_indices],
+            [y_vals[i] for i in highlight_indices],
+            c=[colors[i] for i in highlight_indices],
+            s=80,  # Slightly larger size
+            edgecolors='darkred',
+            linewidths=1.5,
+            alpha=0.9
+        )
+
+        # Add labels for highlighted points
+        for i in highlight_indices:
+            plt.text(
+                x_vals[i], y_vals[i],
+                residues[i],
+                fontsize=8,
+                ha='center',
+                va='bottom',
+                bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', pad=1)
+            )
+
 
     # Add reference lines
     plt.axhline(0, color='gray', linestyle='--', linewidth=0.8)
@@ -1115,6 +1170,7 @@ def parse_arguments():
     frustration_flag = False
     seqdist_flag = 12
     isolate_flag = True
+    plots_flag = True
     pdb_files = []
 
     for arg in sys.argv[1:]:
@@ -1159,15 +1215,24 @@ def parse_arguments():
                 raise ValueError(
             f"the option -isolate expect a boolean (True or False), make sure is write in the correct format:\n"
             "-option=value")
-
+        elif arg.startswith('-plots='):
+            plots_value = arg.split('=')[1].lower()
+            if plots_value == 'false':
+                plots_flag = False
+            elif plots_value == 'true':
+                plots_flag = True
+            else :
+                raise ValueError(
+            f"the option -isolate expect a boolean (True or False), make sure is write in the correct format:\n"
+            "-option=value")
 
         else:
             pdb_files.append(arg)
 
-    return pdb_files, vmd_flag, frustration_flag, seqdist_flag, isolate_flag
+    return pdb_files, vmd_flag, frustration_flag, seqdist_flag, isolate_flag, plots_flag
 
 #when only a file given
-def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, isolate_flag=True ):
+def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, isolate_flag=True, plots_flag=True ):
     start_time = time.time()
     # 1. Extract the type (MtEnc/TmEnc) and number (t) from the filename
     enc_type, enc_number = extract_info_from_filename(pdb_file1)
@@ -1186,8 +1251,10 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, 
 
     if isolate_flag:
 
-        results_pdb_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir, f"{enc_type}{enc_number}_monomers")
-        results_frustration_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir, f"{enc_type}{enc_number}_frustration_seqdist_{seqdist_flag}_isolate")
+        isolate_dir = "Isolate"
+
+        results_pdb_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir,isolate_dir, f"{enc_type}{enc_number}_monomers")
+        results_frustration_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir,isolate_dir, f"{enc_type}{enc_number}_frustration_seqdist_{seqdist_flag}_isolate")
 
         plots_dir = os.path.join("../plots", enc_type, f"frustration_seqdist_{seqdist_flag}_isolate")
 
@@ -1221,26 +1288,28 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, 
         #8.
         dico_mean = dico_mean_frustration(dico_monomers)
         #print(dico_mean)
+        if plots_flag:
+            #9
+            plot_frustration_per_res(dico_mean, enc_type, enc_number, plots_dir, seqdist_flag, isolate_flag)
 
-        #9
-        plot_frustration_per_res(dico_mean, enc_type, enc_number, plots_dir, seqdist_flag, isolate_flag)
+            #10
+            #plot_min_and_max_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
+            plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir, seqdist_flag)
 
-        #10
-        #plot_min_and_max_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
-        plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir, seqdist_flag)
-
-        #dico_list = dico_list_frustration(dico_monomers)
-        #plot_frustration_boxplots(dico_list, enc_type, enc_number, plots_dir)
+            #dico_list = dico_list_frustration(dico_monomers)
+            #plot_frustration_boxplots(dico_list, enc_type, enc_number, plots_dir)
 
         # % of frustration type
         dico_types = dico_percentage_frustration_types(dico_monomers)
         #print(dico_types)
 
         dico_mean_types = dico_mean_percentage_frustration_types(dico_types)
-        print(dico_mean_types)
+        #print(dico_mean_types)
+        return dico_mean
     else:
 
-        results_frustration_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir,
+        not_isolate_dir = "Not_Isolate"
+        results_frustration_dir = os.path.join(results_dir, frustration_dir, capsids_dir, monomer_dir,not_isolate_dir,
                                                f"{enc_type}{enc_number}_frustration_seqdist_{seqdist_flag}_NOT_isolate")
 
         plots_dir = os.path.join("../plots", enc_type, f"frustration_seqdist_{seqdist_flag}_NOT_isolate")
@@ -1253,11 +1322,61 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, 
         if frustration_flag:
             # 4. calculation of frustration
             calculate_frustration(pdb_file1, results_frustration_dir, seqdist_flag)
+
         dico_monomer = dico_of_dico_frustIndex_with_chains(results_frustration_dir)
         #print(dico_monomer)
-        dico_mean = dico_mean_frustration(dico_monomer)
-        #print(dico_mean)
-        plot_frustration_per_res(dico_mean, enc_type, enc_number, plots_dir, seqdist_flag, isolate_flag)
+        #print(dico_monomer)
+        if plots_flag :
+            dico_mean = dico_mean_frustration(dico_monomer)
+            plot_frustration_per_res(dico_mean, enc_type, enc_number, plots_dir, seqdist_flag, isolate_flag)
+            #print(dico_mean)
+            dico_mean_isolate = main(pdb_file1, vmd_flag, frustration_flag, seqdist_flag, isolate_flag=True)
+            #print(dico_mean_isolate)
+            # Créer un nouveau dictionnaire pour stocker les différences
+            diff_dict = {}
+
+            # Parcourir les clés communes aux deux dictionnaires
+            for residue in dico_mean.keys() :
+                diff = dico_mean_isolate[residue]['mean'] - dico_mean[residue]['mean']
+                diff_dict[residue] = diff
+            #print(diff_dict)
+            # Préparation des données pour le plot
+            residues = list(diff_dict.keys())
+            values = list(diff_dict.values())
+            x_pos = np.arange(len(residues))  # positions des résidus sur l'axe x
+
+            # Création du plot
+            plt.figure(figsize=(15, 6))
+
+            # Barres ou points pour les valeurs de frustration
+            plt.scatter(x_pos, values, color='blue', label='Frustration résiduelle')
+            # Ou utiliser des barres :
+            # plt.bar(x_pos, values, color='blue', alpha=0.7, label='Frustration résiduelle')
+
+            # Ligne horizontale à y=0
+            plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.8)
+
+            # Personnalisation du plot
+            plt.xticks(
+            range(len(residues))[::3],
+            residues[::3],
+            rotation=45,
+            fontsize=7,
+            ha='right'
+            )
+            plt.ylabel('delta Frustration ISOLATE - NOT ISOLATE ')
+            plt.title('delta frsutration per res')
+            plt.grid(axis='y', linestyle=':', alpha=0.5)
+            plt.tight_layout()  # Ajuste les marges
+
+             # Save plot
+            name_plot = f"delta_frustration_per_res_{enc_type}_frame_{enc_number}.png"
+            plot_path = os.path.join(plots_dir, name_plot)
+            plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+            plt.close()
+        else:
+            return dico_monomer
+
 
         print("Work in progress for isolate= False")
 
@@ -1293,12 +1412,13 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdis
 
     monomer_dir = "FRUSTRATION_monomer_for_a_frame"
     if isolate_flag:
+        isolate_dir = "Isolate"
 
-        results_pdb_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_monomers")
-        results_frustration_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1,monomer_dir, f"{enc_type1}{enc_number1}_frustration_seqdist_{seqdist_flag}_isolate")
+        results_pdb_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1,monomer_dir, isolate_dir, f"{enc_type1}{enc_number1}_monomers")
+        results_frustration_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1,monomer_dir,isolate_dir, f"{enc_type1}{enc_number1}_frustration_seqdist_{seqdist_flag}_isolate")
 
-        results_pdb_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_monomers")
-        results_frustration_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2,monomer_dir, f"{enc_type2}{enc_number2}_frustration_seqdist_{seqdist_flag}_isolate")
+        results_pdb_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2,monomer_dir,isolate_dir, f"{enc_type2}{enc_number2}_monomers")
+        results_frustration_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2,monomer_dir,isolate_dir, f"{enc_type2}{enc_number2}_frustration_seqdist_{seqdist_flag}_isolate")
 
         plots_dir = os.path.join("../plots", "COMMON", f"frustration_seqdist_{seqdist_flag}_isolate")
 
@@ -1406,11 +1526,11 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdis
 
         plot_barplot_percentage_frustration_types(plots_dir, dico_mean_types_1, dico_mean_types_2, enc_type1, enc_number1, enc_type2, enc_number2, seqdist_flag )
     else :
-
-        results_frustration_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1, monomer_dir,
+        not_isolate_dir = "Not_Isolate"
+        results_frustration_dir1 = os.path.join(results_dir, frustration_dir1, capsids_dir1, monomer_dir, not_isolate_dir,
                                                 f"{enc_type1}{enc_number1}_frustration_seqdist_{seqdist_flag}_NOT_isolate")
 
-        results_frustration_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2, monomer_dir,
+        results_frustration_dir2 = os.path.join(results_dir, frustration_dir2, capsids_dir2, monomer_dir, not_isolate_dir,
                                                 f"{enc_type2}{enc_number2}_frustration_seqdist_{seqdist_flag}_NOT_isolate")
 
         plots_dir = os.path.join("../plots", "COMMON", f"frustration_seqdist_{seqdist_flag}_NOT_isolate")
@@ -1445,11 +1565,11 @@ def main2(pdb_file1, pdb_file2, vmd_flag = False, frustration_flag=False, seqdis
     print(f"Temps d'exécution: {execution_time:.2f} secondes")
 
 if __name__ == "__main__":
-    pdb_files, vmd_flag, frustration_flag, seqdist_flag, isolate_flag = parse_arguments()
+    pdb_files, vmd_flag, frustration_flag, seqdist_flag, isolate_flag, plots_flag = parse_arguments()
 
     if len(pdb_files) == 1:
         try:
-            main(pdb_files[0], vmd_flag=vmd_flag, frustration_flag=frustration_flag, seqdist_flag= seqdist_flag, isolate_flag= isolate_flag)
+            main(pdb_files[0], vmd_flag=vmd_flag, frustration_flag=frustration_flag, seqdist_flag= seqdist_flag, isolate_flag= isolate_flag, plots_flag= plots_flag)
         except ValueError as e:
             print(f"Error: {e}")
             sys.exit(1)
