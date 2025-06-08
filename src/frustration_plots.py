@@ -887,69 +887,124 @@ def plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir
     plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
 
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+import matplotlib.patches as mpatches
 
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib.patches as mpatches
 
-
-def plot_frustration_boxplots(dico_list, enc_type, enc_number, plots_dir):
+def plot_frustration_boxplots(dico_monomer, enc_type, enc_number, plots_dir, seqdist, isolate):
     """
     Generate boxplots of frustration values per residue from a dictionary of lists.
-    Shows only boxplots without individual data points.
+    Box color depends on the distribution:
+      - Red: all values < -1
+      - Green: all values > 0.58
+      - Gray: all values between -1 and 0.58
+      - Blue: mixed values
+    Y-axis is inverted (negative up). Residues 187 and 188 are highlighted with red background.
 
     Parameters:
-    - dico_list: Dictionary with residue IDs as keys and lists of frustration values
-                Example: {'M4': [0.51, 0.67, ...], ...}
-    - enc_type: Encounter type identifier
-    - enc_number: Encounter number
+    - dico_monomer: Dict with residue IDs as keys and list of frustration values
+    - enc_type: Encounter type
+    - enc_number: Monomer number
     - plots_dir: Directory to save the plot
+    - seqdist: Sequence distance (used in title)
+    - isolate: Boolean flag for title customization
     """
-    # Convert dictionary to DataFrame for easier plotting
-    df = pd.DataFrame.from_dict(dico_list, orient='index').T
 
-    # Melt the DataFrame for seaborn compatibility
+    df = pd.DataFrame.from_dict(dico_monomer, orient='index').T
     df_melted = df.melt(var_name='Residue', value_name='Frustration')
 
-    # Create figure
-    plt.figure(figsize=(14, 7))
-
-    # Create boxplot with Seaborn (showing only boxes)
-    sns.boxplot(
+    plt.figure(figsize=(16, 6))
+    ax = sns.boxplot(
         data=df_melted,
         x='Residue',
         y='Frustration',
-        #palette='vlag',  # Red-white-blue diverging palette
-        showfliers=True,  # Hide outliers (since we don't want individual points)
-        width=0.6,
-        linewidth=1.5,
-        fliersize=0  # Ensure no outlier markers are shown
+        showfliers=True,
+        width=0.75,
+        linewidth=1,
+        fliersize=2,
+        color='skyblue'
     )
 
-    # Reference line at y=0
+    # Highlight residues ending with 187 or 188
+    highlight_suffixes = ['187', '188']
+    residue_list = list(dico_monomer.keys())
+    for i, res in enumerate(residue_list):
+        if any(res.endswith(suffix) for suffix in highlight_suffixes):
+            ax.axvspan(i - 0.5, i + 0.5, color='lightcoral', alpha=0.3, zorder=0)
+
+    # Color each box
+    for residue, patch in zip(residue_list, ax.patches):
+        values = dico_monomer[residue]
+        all_below = all(val < -1 for val in values)
+        all_above = all(val > 0.58 for val in values)
+        all_middle = all(-1 <= val <= 0.58 for val in values)
+
+        if all_below:
+            patch.set_facecolor('red')
+            patch.set_edgecolor('darkred')
+        elif all_above:
+            patch.set_facecolor('green')
+            patch.set_edgecolor('darkgreen')
+        elif all_middle:
+            patch.set_facecolor('gray')
+            patch.set_edgecolor('black')
+        else:
+            patch.set_facecolor('skyblue')
+            patch.set_edgecolor('steelblue')
+
+    # Invert Y-axis
+    ax.invert_yaxis()
+
+    # Horizontal reference lines
     plt.axhline(0, color='gray', linestyle='--', linewidth=1, alpha=0.7)
+    plt.axhline(-1, color='red', linestyle=':', linewidth=1, alpha=0.5)
+    plt.axhline(0.58, color='green', linestyle=':', linewidth=1, alpha=0.5)
 
-    # Customize plot
-    plt.title(f'Frustration Distribution per Residue ({enc_type}, Monomer {enc_number})', pad=20, fontsize=14)
+    # X-axis formatting
+    xticks = ax.get_xticks()
+    xlabels = [label.get_text() for label in ax.get_xticklabels()]
+    ax.set_xticks(xticks[::3])
+    ax.set_xticklabels(xlabels[::3], rotation=45, ha='right', fontsize=7)
+
+    # Vertical grid lines
+    for x in xticks:
+        plt.axvline(x=x, color='gray', linestyle=':', linewidth=0.5, alpha=0.3)
+
+    # Title and labels
+    if isolate:
+        plt.title(f'Frustration Distribution per Residue ({enc_type}, frame {enc_number}, seqdist {seqdist}, isolate)',
+                  fontsize=10)
+    else:
+        plt.title(f'Frustration Distribution per Residue ({enc_type}, frame {enc_number}, seqdist {seqdist}, not isolate)',
+                  fontsize=10)
+
     plt.xlabel('Residue', labelpad=10)
-    plt.ylabel('Frustration Index', labelpad=10)
-
-    # Rotate x-axis labels and adjust font
-    plt.xticks(
-        rotation=45,
-        ha='right',
-        fontsize=10
-    )
-
-    # Improve y-axis
+    plt.ylabel('Frustration Index ', labelpad=10)
     plt.yticks(fontsize=10)
     plt.grid(axis='y', alpha=0.3)
 
-    # Adjust layout
-    plt.tight_layout()
+    # Legend
+    red_patch = mpatches.Patch(color='red', label='All values < -1')
+    green_patch = mpatches.Patch(color='green', label='All values > 0.58')
+    gray_patch = mpatches.Patch(color='gray', label='All between -1 and 0.58')
+    blue_patch = mpatches.Patch(color='skyblue', label='Mixed values')
+    plt.legend(handles=[red_patch, green_patch, gray_patch, blue_patch], fontsize=8)
 
     # Save plot
+    plt.tight_layout()
     name_plot = f"frustration_boxplot_per_res_{enc_type}_monomer_{enc_number}.png"
     plot_path = os.path.join(plots_dir, name_plot)
     plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
+
 
 
 def plot_scatter_frustration_mean(dico_mean1, dico_mean2, enc_type1, enc_number1, enc_type2, enc_number2, plots_dir, seqdist_flag, mode_flag):
@@ -1410,8 +1465,8 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, 
             #plot_min_and_max_frustration_per_res(dico_monomers, enc_type, enc_number, plots_dir)
             plot_min_max_frustration_bars(dico_monomers, enc_type, enc_number, plots_dir, seqdist_flag, mode_flag)
 
-            #dico_list = dico_list_frustration(dico_monomers)
-            #plot_frustration_boxplots(dico_list, enc_type, enc_number, plots_dir)
+            dico_list = dico_list_frustration(dico_monomers)
+            plot_frustration_boxplots(dico_list, enc_type, enc_number, plots_dir, seqdist_flag, isolate_flag)
 
         # % of frustration type
         dico_types = dico_percentage_frustration_types(dico_monomers, mode_flag)
@@ -1446,48 +1501,50 @@ def main(pdb_file1, vmd_flag= False, frustration_flag=False, seqdist_flag = 12, 
             #print(dico_mean)
             dico_mean_isolate = main(pdb_file1, vmd_flag, frustration_flag, seqdist_flag, isolate_flag=True)
             #print(dico_mean_isolate)
-            # Créer un nouveau dictionnaire pour stocker les différences
-            diff_dict = {}
 
+            dico_list = dico_list_frustration(dico_monomer)
+            plot_frustration_boxplots(dico_list, enc_type, enc_number, plots_dir, seqdist_flag, isolate_flag)
+            # Créer un nouveau dictionnaire pour stocker les différences
+            #diff_dict = {}
             # Parcourir les clés communes aux deux dictionnaires
-            for residue in dico_mean.keys() :
-                diff = dico_mean_isolate[residue]['mean'] - dico_mean[residue]['mean']
-                diff_dict[residue] = diff
+            #for residue in dico_mean.keys() :
+            #    diff = dico_mean_isolate[residue]['mean'] - dico_mean[residue]['mean']
+            #    diff_dict[residue] = diff
             #print(diff_dict)
             # Préparation des données pour le plot
-            residues = list(diff_dict.keys())
-            values = list(diff_dict.values())
-            x_pos = np.arange(len(residues))  # positions des résidus sur l'axe x
+            #residues = list(diff_dict.keys())
+            #values = list(diff_dict.values())
+            #x_pos = np.arange(len(residues))  # positions des résidus sur l'axe x
 
             # Création du plot
-            plt.figure(figsize=(15, 6))
+            #plt.figure(figsize=(15, 6))
 
             # Barres ou points pour les valeurs de frustration
-            plt.scatter(x_pos, values, color='blue', label='Frustration résiduelle')
+            #plt.scatter(x_pos, values, color='blue', label='Frustration résiduelle')
             # Ou utiliser des barres :
             # plt.bar(x_pos, values, color='blue', alpha=0.7, label='Frustration résiduelle')
 
             # Ligne horizontale à y=0
-            plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.8)
+            #plt.axhline(y=0, color='gray', linestyle='--', linewidth=0.8)
 
             # Personnalisation du plot
-            plt.xticks(
-            range(len(residues))[::3],
-            residues[::3],
-            rotation=45,
-            fontsize=7,
-            ha='right'
-            )
-            plt.ylabel('delta Frustration ISOLATE - NOT ISOLATE ')
-            plt.title('delta frsutration per res')
-            plt.grid(axis='y', linestyle=':', alpha=0.5)
-            plt.tight_layout()  # Ajuste les marges
+            #plt.xticks(
+            #range(len(residues))[::3],
+            #residues[::3],
+            #rotation=45,
+            #fontsize=7,
+            #ha='right'
+            #)
+            #plt.ylabel('delta Frustration ISOLATE - NOT ISOLATE ')
+            #plt.title('delta frsutration per res')
+            #plt.grid(axis='y', linestyle=':', alpha=0.5)
+            #plt.tight_layout()  # Ajuste les marges
 
              # Save plot
-            name_plot = f"delta_frustration_per_res_{enc_type}_frame_{enc_number}.png"
-            plot_path = os.path.join(plots_dir, name_plot)
-            plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
-            plt.close()
+            #name_plot = f"delta_frustration_per_res_{enc_type}_frame_{enc_number}.png"
+            #plot_path = os.path.join(plots_dir, name_plot)
+            #plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+            #plt.close()
         else:
             return dico_monomer
 
