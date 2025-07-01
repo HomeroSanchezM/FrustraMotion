@@ -6,7 +6,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
-import os
+import pickle
+
 
 """
 This script takes as a parameter the directory containing the frustration data and creates various dataframes 
@@ -22,7 +23,6 @@ Options:
 
 More features in progress...
 """
-
 
 def parse_arguments():
     """
@@ -42,6 +42,44 @@ def parse_arguments():
         sys.exit(1)
 
     return args.dir, args.isolate
+
+
+def get_protein_name(dir_path, isolate):
+    """
+    Extract the protein name from the directory structure
+    """
+    # Get the first .done directory to extract protein name
+    for dirname in os.listdir(dir_path):
+        if dirname.endswith('.done'):
+            parts = dirname.split('_')
+            if isolate and len(parts) >= 3:
+                return parts[0]  # Protein name is first part in isolate mode
+            elif not isolate and len(parts) >= 2:
+                return parts[0]  # Protein name is first part in non-isolate mode
+
+    print("Error: Could not determine protein name from directory structure")
+    sys.exit(1)
+
+
+def save_dataframes(dataframes, protein_name):
+    """
+    Save dataframes to ../dataframes/protein_name/
+    """
+    # Create output directory
+    output_dir = os.path.join('../dataframes', protein_name)
+    os.makedirs(output_dir, exist_ok=True)
+
+    if isinstance(dataframes, dict):
+        # Multiple chains - save each as separate file
+        for chain_id, df in dataframes.items():
+            output_path = os.path.join(output_dir, f'frustration_chain_{chain_id}.csv')
+            df.to_csv(output_path, index=False)
+            print(f"Saved dataframe for chain {chain_id} to {output_path}")
+    else:
+        # Single dataframe
+        output_path = os.path.join(output_dir, 'frustration_data.csv')
+        dataframes.to_csv(output_path, index=False)
+        print(f"Saved dataframe to {output_path}")
 
 
 def parse_frustration_results(dir, isolate):
@@ -292,30 +330,27 @@ def main():
     print(f"\nProcessing directory: {dir_path}")
     print(f"Isolate mode: {isolate}\n")
 
+    # Get protein name
+    protein_name = get_protein_name(dir_path, isolate)
+    print(f"Protein name: {protein_name}")
+
     # Parse frustration results
     print("Starting to parse frustration results...")
     frustration_data = parse_frustration_results(dir_path, isolate)
     print("\nFinished parsing frustration results.")
+
+    # Save dataframes
+    print("\nSaving dataframes...")
+    save_dataframes(frustration_data, protein_name)
 
     # Display information about the parsed data
     if isinstance(frustration_data, dict):
         print(f"\nFound {len(frustration_data)} chains:")
         for chain_id, df in frustration_data.items():
             print(f"Chain {chain_id}: DataFrame with shape {df.shape}")
-            print(f"First few rows:\n{df.head()}\n")
     else:
         print("\nSingle DataFrame result:")
         print(f"DataFrame shape: {frustration_data.shape}")
-        print(f"First few rows:\n{frustration_data.head()}\n")
-
-    # Additional analysis example
-    if isinstance(frustration_data, dict):
-        for chain_id, df in frustration_data.items():
-            print(f"\nBasic statistics for chain {chain_id}:")
-            print(df.describe())
-    else:
-        print("\nBasic statistics for single chain:")
-        print(frustration_data.describe())
 
     print("\nProcessing complete.")
 
