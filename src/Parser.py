@@ -19,7 +19,7 @@ Options:
                         the data frames will be separated by chainName 
     If isolate == False, the folders containing the frustration data follow this format: ProteinName_FrameNumber.done
                         if the are more than one chain, the data frames will be separated by chain, 
-                        else there will be only one dataframe with all the data
+                        
 
 More features in progress...
 """
@@ -66,7 +66,7 @@ def save_dataframes(dataframes, protein_name):
     Save dataframes to ../dataframes/protein_name/
     """
     # Create output directory
-    output_dir = os.path.join('../dataframes', protein_name)
+    output_dir = os.path.join('../dataframes', 'Not_isolated', protein_name)
     os.makedirs(output_dir, exist_ok=True)
 
     if isinstance(dataframes, dict):

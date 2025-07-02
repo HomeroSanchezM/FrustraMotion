@@ -4,6 +4,8 @@ import os
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
+import matplotlib.patches as mpatches
 
 
 def parse_arguments():
@@ -12,19 +14,27 @@ def parse_arguments():
     """
     parser = argparse.ArgumentParser(description='Visualize frustration data.')
     parser.add_argument('dataframes_dir', type=str,
-                        help='Directory containing the frustration dataframes')
+                      help='Directory containing the frustration dataframes')
     parser.add_argument('--chain', type=str, default=None,
-                        help='Specific chain to analyze (e.g., "0", "A"). If not specified, uses first chain.')
+                      help='Specific chain to analyze (e.g., "0", "A"). If not specified, uses first chain.')
     parser.add_argument('--generate-tcl', action='store_true', default=False,
-                        help='Generate TCL script for visualization in VMD')
+                      help='Generate TCL script for visualization in VMD')
     parser.add_argument('--pdb-dir', type=str, default=None,
-                        help='Directory containing PDB files')
+                      help='Directory containing PDB files')
     parser.add_argument('--frame-step', type=int, default=10,
-                        help='Step between frames in the animation (default: 10)')
+                      help='Step between frames in the animation (default: 10)')
     parser.add_argument('--max-frames', type=int, default=None,
-                        help='Maximum number of frames to include in the TCL script (default: all frames)')
+                      help='Maximum number of frames to include in the TCL script (default: all frames)')
     parser.add_argument('--residue', type=int, default=None,
-                        help='Specific residue number to analyse')
+                      help='Specific residue number to analyse')
+    parser.add_argument('--boxplot', action='store_true', default=False,
+                      help='Generate boxplot of frustration values per residue')
+    parser.add_argument('--variability', action='store_true', default=False,
+                      help='Show variability across chains')
+    parser.add_argument('--frame', type=int, default=None,
+                      help='Specific frame number to analyze for boxplot/variability')
+    parser.add_argument('--dynamic', action='store_true', default=False,
+                        help='Generate dynamic boxplot of frustration values across all frames for a chain')
 
     args = parser.parse_args()
 
@@ -33,7 +43,9 @@ def parse_arguments():
         print(f"Error: Directory {args.dataframes_dir} does not exist")
         sys.exit(1)
 
-    return args.dataframes_dir, args.chain, args.generate_tcl, args.pdb_dir, args.frame_step, args.max_frames, args.residue
+    return (args.dataframes_dir, args.chain, args.generate_tcl, args.pdb_dir,
+            args.frame_step, args.max_frames, args.residue, args.boxplot,
+            args.variability, args.frame, args.dynamic)
 
 
 def load_dataframes(dataframes_dir):
@@ -237,7 +249,7 @@ def plot_frustration_vs_frames(frust_frames_data, frames):
     frustration_values = [float(val) for val in frust_frames_data]
 
     # Create figure
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(24, 4))
 
     # Plot lines connecting all points (thin line)
     plt.plot(frame_numbers, frustration_values,
@@ -257,7 +269,10 @@ def plot_frustration_vs_frames(frust_frames_data, frames):
         else:
             color = 'gray'  # Neutral
 
-        plt.scatter(x, y, color=color, s=50, zorder=2)
+        plt.scatter(x, y, color=color, s=15, zorder=2)
+
+    # Set Y-axis limits
+    plt.ylim(-4, 2)
 
     # Customize plot
     plt.gca().invert_yaxis()  # Invert y-axis as requested
@@ -406,9 +421,248 @@ def plot_all_chains_frustration(frustration_data, residue_num):
     plt.show()
 
 
+def plot_frustration_boxplots(frustration_data, frame_num, output_dir=None):
+    """
+    Generate boxplots of frustration values per residue across all chains for a specific frame.
+    Box color depends on the distribution:
+      - Red: all values < -1
+      - Green: all values > 0.58
+      - Gray: all values between -1 and 0.58
+      - Blue: mixed values
+    Y-axis is inverted (negative up).
+
+    Parameters:
+    - frustration_data: Dict of DataFrames (one per chain) or single DataFrame
+    - frame_num: Frame number to analyze
+    - output_dir: Directory to save the plot (if None, shows plot)
+    """
+    import seaborn as sns
+    import matplotlib.patches as mpatches
+
+    # Prepare data
+    frame_col = f'frame{frame_num}'
+    all_data = []
+
+    if isinstance(frustration_data, dict):
+        # Multiple chains case
+        for chain_id, df in frustration_data.items():
+            temp_df = df[['residue', frame_col]].copy()
+            temp_df['chain'] = chain_id
+            all_data.append(temp_df)
+    else:
+        # Single chain case
+        temp_df = frustration_data[['residue', frame_col]].copy()
+        temp_df['chain'] = frustration_data['chain'].iloc[0]
+        all_data.append(temp_df)
+
+    combined_df = pd.concat(all_data)
+
+    plt.figure(figsize=(16, 6))
+    ax = sns.boxplot(
+        data=combined_df,
+        x='residue',
+        y=frame_col,
+        showfliers=True,
+        width=0.75,
+        linewidth=1,
+        fliersize=2,
+        color='skyblue'
+    )
+
+    # Color each box based on values
+    residue_list = combined_df['residue'].unique()
+    for i, residue in enumerate(residue_list):
+        values = combined_df[combined_df['residue'] == residue][frame_col].values
+        all_below = all(val < -1 for val in values)
+        all_above = all(val > 0.58 for val in values)
+        all_middle = all(-1 <= val <= 0.58 for val in values)
+
+        if all_below:
+            ax.patches[i].set_facecolor('red')
+            ax.patches[i].set_edgecolor('darkred')
+        elif all_above:
+            ax.patches[i].set_facecolor('green')
+            ax.patches[i].set_edgecolor('darkgreen')
+        elif all_middle:
+            ax.patches[i].set_facecolor('gray')
+            ax.patches[i].set_edgecolor('black')
+        else:
+            ax.patches[i].set_facecolor('skyblue')
+            ax.patches[i].set_edgecolor('steelblue')
+
+    # Invert Y-axis and set limits
+    plt.ylim(-3.5, 3.5)
+    ax.invert_yaxis()
+
+    # Horizontal reference lines
+    plt.axhline(0, color='gray', linestyle='--', linewidth=1, alpha=0.7)
+    plt.axhline(-1, color='red', linestyle=':', linewidth=1, alpha=0.5)
+    plt.axhline(0.58, color='green', linestyle=':', linewidth=1, alpha=0.5)
+
+    # X-axis formatting
+    xticks = ax.get_xticks()
+    xlabels = [label.get_text() for label in ax.get_xticklabels()]
+    ax.set_xticks(xticks[::3])
+    ax.set_xticklabels(xlabels[::3], rotation=45, ha='right', fontsize=7)
+
+    # Vertical grid lines
+    for x in xticks:
+        plt.axvline(x=x, color='gray', linestyle=':', linewidth=0.5, alpha=0.3)
+
+    # Title and labels
+    plt.title(f'Frustration Distribution per Residue (Frame {frame_num})', fontsize=12)
+    plt.xlabel('Residue', labelpad=10)
+    plt.ylabel('Frustration Index', labelpad=10)
+    plt.yticks(fontsize=10)
+    plt.grid(axis='y', alpha=0.3)
+
+    # Legend
+    red_patch = mpatches.Patch(color='red', label='All values < -1')
+    green_patch = mpatches.Patch(color='green', label='All values > 0.58')
+    gray_patch = mpatches.Patch(color='gray', label='All between -1 and 0.58')
+    blue_patch = mpatches.Patch(color='skyblue', label='Mixed values')
+    plt.legend(handles=[red_patch, green_patch, gray_patch, blue_patch], fontsize=8)
+
+    plt.tight_layout()
+    plt.show()
+    #if output_dir:
+    #    os.makedirs(output_dir, exist_ok=True)
+    #    plot_path = os.path.join(output_dir, f"frustration_boxplot_frame_{frame_num}.png")
+    #    plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+    #    plt.close()
+    #    print(f"Boxplot saved to {plot_path}")
+    #else:
+    #    plt.show()
+
+def plot_dynamic_frustration_boxplots(frustration_data, chain_id=None, output_dir=None):
+    """
+    Generate boxplots of frustration values per residue across all frames for a specific chain.
+    Box color depends on the distribution:
+      - Red: all values < -1
+      - Green: all values > 0.58
+      - Gray: all values between -1 and 0.58
+      - Blue: mixed values
+    Y-axis is inverted (negative up). Residue  is highlighted with red background.
+
+    Parameters:
+    - frustration_data: Dict of DataFrames (one per chain) or single DataFrame
+    - chain_id: Specific chain to analyze (if None, uses first available chain)
+    - output_dir: Directory to save the plot (if None, shows plot)
+    """
+    import seaborn as sns
+    import matplotlib.patches as mpatches
+
+    # Select the chain to analyze
+    if isinstance(frustration_data, dict):
+        if chain_id is None:
+            chain_id = list(frustration_data.keys())[0]
+        df_chain = frustration_data[chain_id]
+    else:
+        df_chain = frustration_data
+
+    # Get all frame columns
+    frame_columns = [col for col in df_chain.columns if col.startswith('frame')]
+
+    # Prepare data for plotting
+    plot_data = []
+    for _, row in df_chain.iterrows():
+        residue = row['residue']
+        for frame in frame_columns:
+            plot_data.append({
+                'residue': residue,
+                'frustration': row[frame],
+                'frame': int(frame[5:])  # Extract frame number
+            })
+
+    plot_df = pd.DataFrame(plot_data)
+
+    plt.figure(figsize=(16, 6))
+    ax = sns.boxplot(
+        data=plot_df,
+        x='residue',
+        y='frustration',
+        showfliers=True,
+        width=0.75,
+        linewidth=1,
+        fliersize=2,
+        color='skyblue'
+    )
+
+    # Highlight residue
+    highlight_suffixes = ['85']
+    residue_list = plot_df['residue'].unique()
+    for i, res in enumerate(residue_list):
+        if any(res[1:]==suffix for suffix in highlight_suffixes):
+            ax.axvspan(i - 0.5, i + 0.5, color='lightcoral', alpha=0.3, zorder=0)
+
+    # Color each box based on values
+    for i, residue in enumerate(residue_list):
+        values = plot_df[plot_df['residue'] == residue]['frustration'].values
+        all_below = all(val < -1 for val in values)
+        all_above = all(val > 0.58 for val in values)
+        all_middle = all(-1 <= val <= 0.58 for val in values)
+
+        if all_below:
+            ax.patches[i].set_facecolor('red')
+            ax.patches[i].set_edgecolor('darkred')
+        elif all_above:
+            ax.patches[i].set_facecolor('green')
+            ax.patches[i].set_edgecolor('darkgreen')
+        elif all_middle:
+            ax.patches[i].set_facecolor('gray')
+            ax.patches[i].set_edgecolor('black')
+        else:
+            ax.patches[i].set_facecolor('skyblue')
+            ax.patches[i].set_edgecolor('steelblue')
+
+    # Invert Y-axis and set limits
+    plt.ylim(-3.5, 3.5)
+    ax.invert_yaxis()
+
+    # Horizontal reference lines
+    plt.axhline(0, color='gray', linestyle='--', linewidth=1, alpha=0.7)
+    plt.axhline(-1, color='red', linestyle=':', linewidth=1, alpha=0.5)
+    plt.axhline(0.58, color='green', linestyle=':', linewidth=1, alpha=0.5)
+
+    # X-axis formatting
+    xticks = ax.get_xticks()
+    xlabels = [label.get_text() for label in ax.get_xticklabels()]
+    ax.set_xticks(xticks[::3])
+    ax.set_xticklabels(xlabels[::3], rotation=45, ha='right', fontsize=7)
+
+    # Vertical grid lines
+    for x in xticks:
+        plt.axvline(x=x, color='gray', linestyle=':', linewidth=0.5, alpha=0.3)
+
+    # Title and labels
+    plt.title(f'Dynamic Frustration Distribution per Residue (Chain {chain_id})', fontsize=12)
+    plt.xlabel('Residue', labelpad=10)
+    plt.ylabel('Frustration Index', labelpad=10)
+    plt.yticks(fontsize=10)
+    plt.grid(axis='y', alpha=0.3)
+
+    # Legend
+    red_patch = mpatches.Patch(color='red', label='All values < -1')
+    green_patch = mpatches.Patch(color='green', label='All values > 0.58')
+    gray_patch = mpatches.Patch(color='gray', label='All between -1 and 0.58')
+    blue_patch = mpatches.Patch(color='skyblue', label='Mixed values')
+    plt.legend(handles=[red_patch, green_patch, gray_patch, blue_patch], fontsize=8)
+
+    plt.tight_layout()
+    plt.show()
+    #if output_dir:
+    #    os.makedirs(output_dir, exist_ok=True)
+    #    plot_path = os.path.join(output_dir, f"dynamic_frustration_boxplot_chain_{chain_id}.png")
+    #    plt.savefig(plot_path, dpi=300, bbox_inches='tight', facecolor='white')
+    #    plt.close()
+    #    print(f"Dynamic boxplot saved to {plot_path}")
+    #else:
+    #    plt.show()
+
 def main():
-    # Parse command line arguments
-    dataframes_dir, chain_id, generate_tcl, pdb_dir, frame_step, max_frames, residue = parse_arguments()
+    # Parse command line arguments with new parameters
+    (dataframes_dir, chain_id, generate_tcl, pdb_dir, frame_step,
+     max_frames, residue, boxplot, variability, frame_num, dynamic) = parse_arguments()
 
     print(f"\nLoading dataframes from: {dataframes_dir}")
     if chain_id is not None:
@@ -443,6 +697,20 @@ def main():
         print(f"Minimally frustrated residues (>0.58): {len(data['minimally_frustrated'])}")
         print(f"Highly frustrated residues (<-1.0): {len(data['highly_frustrated'])}")
         print(f"Neutral residues: {len(data['neutral'])}")
+
+    # Handle boxplot/variability analysis
+    if boxplot :
+
+        if variability:
+            if frame_num is None:
+                print("\nError: --frame parameter must be specified with --boxplot and --variability")
+                sys.exit(1)
+            plot_frustration_boxplots(frustration_data, frame_num, "plots/boxplots")
+        if dynamic:
+            if chain_id is None:
+                print("\nError: --chain parameter must be specified with --boxplot and --dynamic")
+                sys.exit(1)
+            plot_dynamic_frustration_boxplots(frustration_data, chain_id, "plots/dynamic_boxplots")
 
     # Generate TCL script if requested
     if generate_tcl:
