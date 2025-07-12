@@ -33,6 +33,8 @@ def parse_arguments():
     parser.add_argument('dir', type=str, help='Directory containing the frustration data')
     parser.add_argument('--isolate', action='store_true', default=False,
                         help='Whether the frustration was calculated by separating the chains')
+    parser.add_argument('--true_isolate', action='store_true', default=False,
+                        help='Similar to isolate but results are saved in True_isolate directory')
 
     args = parser.parse_args()
 
@@ -41,10 +43,9 @@ def parse_arguments():
         print(f"Error: Directory {args.dir} does not exist")
         sys.exit(1)
 
-    return args.dir, args.isolate
+    return args.dir, args.isolate, args.true_isolate
 
-
-def get_protein_name(dir_path, isolate):
+def get_protein_name(dir_path):
     """
     Extract the protein name from the directory structure
     """
@@ -52,21 +53,26 @@ def get_protein_name(dir_path, isolate):
     for dirname in os.listdir(dir_path):
         if dirname.endswith('.done'):
             parts = dirname.split('_')
-            if isolate and len(parts) >= 3:
-                return parts[0]  # Protein name is first part in isolate mode
-            elif not isolate and len(parts) >= 2:
-                return parts[0]  # Protein name is first part in non-isolate mode
+            return parts[0]  # Protein name is first part in non-isolate mode
 
     print("Error: Could not determine protein name from directory structure")
     sys.exit(1)
 
 
-def save_dataframes(dataframes, protein_name):
+def save_dataframes(dataframes, protein_name, isolate, true_isolate):
     """
-    Save dataframes to ../dataframes/protein_name/
+    Save dataframes to ../single_residue_dataframes/[Isolated|Not_isolated|True_isolate]/protein_name/
     """
+    # Determine the subdirectory based on isolation mode
+    if true_isolate:
+        subdir = "True_isolated"
+    elif isolate:
+        subdir = "Isolated"
+    else:
+        subdir = "Not_isolated"
+
     # Create output directory
-    output_dir = os.path.join('../dataframes', 'Not_isolated', protein_name)
+    output_dir = os.path.join('../single_residue_dataframes', subdir, protein_name)
     os.makedirs(output_dir, exist_ok=True)
 
     if isinstance(dataframes, dict):
@@ -80,7 +86,6 @@ def save_dataframes(dataframes, protein_name):
         output_path = os.path.join(output_dir, 'frustration_data.csv')
         dataframes.to_csv(output_path, index=False)
         print(f"Saved dataframe to {output_path}")
-
 
 def parse_frustration_results(dir, isolate):
     """
@@ -97,6 +102,7 @@ def parse_frustration_results(dir, isolate):
     :return: df
     """
     if isolate:
+        print(f'on rentre dans le if isolate car cest {isolate} ')
         df = {}
         chain_files = {}
         wrong_format_dirs = []
@@ -142,6 +148,7 @@ def parse_frustration_results(dir, isolate):
             df[chain_name] = Data_frame(files, isolate)
 
     else:
+        print('on rentre dans le else ')
         # List all .done directories (format: Protein_Frame.done)
         files = []
         wrong_format_dirs = []
@@ -326,12 +333,13 @@ Res ChainRes DensityRes AA NativeEnergy DecoyEnergy SDEnergy FrstIndex
 
 def main():
     # Parse command line arguments
-    dir_path, isolate = parse_arguments()
+    dir_path, isolate, true_isolate = parse_arguments()
     print(f"\nProcessing directory: {dir_path}")
-    print(f"Isolate mode: {isolate}\n")
+    print(f"Isolate mode: {isolate}")
+    print(f"True isolate mode: {true_isolate}\n")
 
     # Get protein name
-    protein_name = get_protein_name(dir_path, isolate)
+    protein_name = get_protein_name(dir_path )
     print(f"Protein name: {protein_name}")
 
     # Parse frustration results
@@ -341,7 +349,7 @@ def main():
 
     # Save dataframes
     print("\nSaving dataframes...")
-    save_dataframes(frustration_data, protein_name)
+    save_dataframes(frustration_data, protein_name, isolate, true_isolate)
 
     # Display information about the parsed data
     if isinstance(frustration_data, dict):
@@ -353,7 +361,6 @@ def main():
         print(f"DataFrame shape: {frustration_data.shape}")
 
     print("\nProcessing complete.")
-
 
 if __name__ == "__main__":
     main()

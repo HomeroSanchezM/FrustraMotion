@@ -10,9 +10,18 @@ import numpy as np
 DEFAULT_FRAMES = [0, 4900]  # Modifier cette liste pour changer les frames par défaut
 
 
-def load_contact_data(protein_name, isolate_mode):
+def load_contact_data(protein_name, isolate, true_isolate):
     """Charge les données de contacts précédemment sauvegardées"""
-    data_dir = os.path.join('../contact_data', 'Isolated' if isolate_mode else 'Not_isolated', protein_name)
+
+     # Determine the subdirectory based on isolation mode
+    if true_isolate:
+        subdir = "True_isolated"
+    elif isolate:
+        subdir = "Isolated"
+    else:
+        subdir = "Not_isolated"
+
+    data_dir = os.path.join('../contact_dataframes', subdir, protein_name)
 
     if not os.path.exists(data_dir):
         print(f"Error: No data found for protein {protein_name}")
@@ -23,94 +32,36 @@ def load_contact_data(protein_name, isolate_mode):
         print(f"Error: No TSV files found in {data_dir}")
         return None
 
-    if len(contact_files) > 1:
-        # Multiples chaînes - chargement dans un dictionnaire
-        data = {}
-        for f in contact_files:
-            chain_id = f.split('_')[-1].split('.')[0]
-            df = pd.read_csv(os.path.join(data_dir, f), sep='\t')
-            # Conversion des Frames en numérique et tri
-            df['Frame'] = pd.to_numeric(df['Frame'], errors='coerce')
-            df = df.sort_values('Frame')
-            data[chain_id] = df
-        return data
-    else:
-        # Fichier unique
-        df = pd.read_csv(os.path.join(data_dir, contact_files[0]), sep='\t')
+    # Charger tous les fichiers et les combiner
+    dfs = []
+    for f in contact_files:
+        df = pd.read_csv(os.path.join(data_dir, f), sep='\t')
         df['Frame'] = pd.to_numeric(df['Frame'], errors='coerce')
-        return df.sort_values('Frame')
+        dfs.append(df)
+
+    combined_df = pd.concat(dfs, ignore_index=True)
+    return combined_df.sort_values('Frame')
 
 
-def filter_by_frames(df, frames):
-    """Filtre le dataframe pour ne garder que les frames spécifiées"""
-    return df[df['Frame'].isin(frames)]
-
-
-def plot_contact_frustration(contact_data, output_prefix):
-    """Génère différents graphiques à partir des données de contacts"""
-    if isinstance(contact_data, dict):
-        # Multiples chaînes - graphique pour chaque chaîne
-        for chain_id, df in contact_data.items():
-            _plot_single_chain(df, f"{output_prefix}_chain_{chain_id}")
-    else:
-        # Dataframe unique
-        _plot_single_chain(contact_data, output_prefix)
-
-
-def _plot_single_chain(df, output_prefix):
-    """Génère les graphiques pour une seule chaîne"""
-    # 1. Distribution des frustrations
-    plt.figure(figsize=(10, 6))
-    sns.histplot(df['FrstIndex'], bins=30, kde=True)
-    plt.title('Distribution des indices de frustration')
-    plt.xlabel('Indice de frustration')
-    plt.ylabel('Nombre')
-    plt.savefig(f"{output_prefix}_frustration_dist.png")
-    plt.close()
-
-    # 2. Frustration par type de puit
-    plt.figure(figsize=(10, 6))
-    sns.boxplot(x='Welltype', y='FrstIndex', data=df)
-    plt.title('Frustration par type de puit')
-    plt.savefig(f"{output_prefix}_frustration_by_welltype.png")
-    plt.close()
-
-    # 3. Proportions des états de frustration
-    plt.figure(figsize=(8, 8))
-    df['FrstState'].value_counts().plot.pie(autopct='%1.1f%%')
-    plt.title('Proportion des états de frustration')
-    plt.savefig(f"{output_prefix}_frustration_states.png")
-    plt.close()
-
-    # 4. Évolution de la frustration moyenne sur les frames
-    plt.figure(figsize=(12, 6))
-    sns.lineplot(
-        x='Frame', y='FrstIndex',
-        data=df.groupby('Frame')['FrstIndex'].mean().reset_index(),
-        marker='o'
-    )
-    plt.title('Évolution moyenne de la frustration')
-    plt.xlabel('Numéro de frame')
-    plt.ylabel('Indice moyen de frustration')
-    plt.grid(True)
-    plt.savefig(f"{output_prefix}_frustration_evolution.png")
-    plt.close()
-
-
-def analyze_residue_contacts(contact_data, residue_id):
-    """Analyse tous les contacts pour un résidu spécifique"""
-    if isinstance(contact_data, dict):
-        # Trouve la chaîne du résidu
-        chain_id = residue_id.split(':')[0]
-        if chain_id not in contact_data:
-            print(f"Error: Chaîne {chain_id} non trouvée dans les données")
-            return None, None
-        df = contact_data[chain_id]
-    else:
-        df = contact_data
-
+def filter_contacts(contacts, residue_id, contact_type=None):
+    """Filtre les contacts selon le type demandé (inter/intra)"""
     # Tous les contacts impliquant ce résidu
-    contacts = df[(df['ResID1'] == residue_id) | (df['ResID2'] == residue_id)].copy()
+    filtered = contacts[(contacts['ResID1'] == residue_id) | (contacts['ResID2'] == residue_id)].copy()
+
+    if contact_type == 'intra':
+        # Seulement les contacts intra-chaîne
+        filtered = filtered[filtered['ChainRes1'] == filtered['ChainRes2']]
+    elif contact_type == 'inter':
+        # Seulement les contacts inter-chaînes
+        filtered = filtered[filtered['ChainRes1'] != filtered['ChainRes2']]
+
+    return filtered
+
+
+def analyze_residue_contacts(contacts, residue_id):
+    """Analyse tous les contacts pour un résidu spécifique"""
+    if contacts.empty:
+        return None, None
 
     # Ajoute l'information de direction
     contacts['Direction'] = contacts.apply(
@@ -127,52 +78,16 @@ def analyze_residue_contacts(contact_data, residue_id):
         'neutral': sum(contacts['FrstState'] == 'neutral'),
         'frames_analyzed': contacts['Frame'].nunique(),
         'first_frame': contacts['Frame'].min(),
-        'last_frame': contacts['Frame'].max()
+        'last_frame': contacts['Frame'].max(),
+        'intra_chain': sum(contacts['ChainRes1'] == contacts['ChainRes2']),
+        'inter_chain': sum(contacts['ChainRes1'] != contacts['ChainRes2'])
     }
 
     return contacts, stats
 
 
-def plot_residue_evolution(contacts, residue_id, output_prefix):
-    """Trace l'évolution de la frustration pour un résidu spécifique"""
-    if contacts.empty:
-        return
-
-    plt.figure(figsize=(14, 7))
-
-    # Contacts sortants
-    outgoing = contacts[contacts['Direction'] == 'sortant']
-    if not outgoing.empty:
-        sns.lineplot(
-            x='Frame', y='FrstIndex',
-            data=outgoing.groupby('Frame')['FrstIndex'].mean().reset_index(),
-            label='Contacts sortants',
-            color='red',
-            marker='o'
-        )
-
-    # Contacts entrants
-    incoming = contacts[contacts['Direction'] == 'entrant']
-    if not incoming.empty:
-        sns.lineplot(
-            x='Frame', y='FrstIndex',
-            data=incoming.groupby('Frame')['FrstIndex'].mean().reset_index(),
-            label='Contacts entrants',
-            color='blue',
-            marker='o'
-        )
-
-    plt.title(f'Évolution de la frustration pour le résidu {residue_id}')
-    plt.xlabel('Numéro de frame')
-    plt.ylabel('Indice de frustration')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(f"{output_prefix}_residue_evolution.png")
-    plt.close()
-
-
 def plot_residue_contacts(contacts, residue_id, output_prefix, frames=None):
-    """Visualisation détaillée des contacts pour des frames spécifiques ou toutes les frames"""
+    """Visualisation des contacts pour un résidu spécifique"""
     if contacts.empty:
         return None, None
 
@@ -181,12 +96,13 @@ def plot_residue_contacts(contacts, residue_id, output_prefix, frames=None):
         frames = sorted(contacts['Frame'].unique())
         frame_label = "all_frames"
     else:
-        contacts = filter_by_frames(contacts, frames)
+        contacts = contacts[contacts['Frame'].isin(frames)]
         frame_label = f"frames_{'_'.join(map(str, frames))}"
 
     # Création d'une palette de couleurs pour les différents contacts
     unique_pairs = contacts['ResID1'] + "-" + contacts['ResID2']
     unique_pairs = unique_pairs.unique()
+
     palette = sns.color_palette("husl", len(unique_pairs))
     color_map = {pair: palette[i] for i, pair in enumerate(unique_pairs)}
 
@@ -203,7 +119,6 @@ def plot_residue_contacts(contacts, residue_id, output_prefix, frames=None):
     for pair in unique_pairs:
         pair_contacts = contacts[(contacts['ResID1'] + "-" + contacts['ResID2'] == pair) |
                                  (contacts['ResID2'] + "-" + contacts['ResID1'] == pair)]
-
         # Trier par frame pour une bonne connexion des points
         pair_contacts = pair_contacts.sort_values('Frame')
 
@@ -236,13 +151,13 @@ def plot_residue_contacts(contacts, residue_id, output_prefix, frames=None):
     plt.axhline(y=0.78, color='green', linestyle='--', linewidth=1, alpha=0.7)
 
     # Configuration du graphique
-    plt.title(f'Évolution des contacts pour le résidu {residue_id}\nFrames: 0-4900')
+    plt.title(f'Évolution des contacts pour le résidu {residue_id}\nFrames: {frame_label}')
     plt.xlabel('Numéro de frame')
     plt.ylabel('Indice de frustration (inversé)')
     plt.grid(True)
 
     # Amélioration de l'affichage des ticks sur l'axe X
-    plt.xticks(np.arange(0, 4901, 500))
+    plt.xticks(np.arange(min(frames), max(frames) + 1, 500))
 
     # Légende personnalisée
     handles = []
@@ -283,11 +198,11 @@ def plot_residue_contacts(contacts, residue_id, output_prefix, frames=None):
                               loc='upper left')
 
     # Ajouter la légende des tailles
-    plt.gca().add_artist(first_legend)
-    plt.legend(handles=size_legend,
-               title='Type de contact',
-               bbox_to_anchor=(1.05, 0.7),
-               loc='upper left')
+    #plt.gca().add_artist(first_legend)
+    #plt.legend(handles=size_legend,
+    #           title='Type de contact',
+    #           bbox_to_anchor=(1.05, 0.7),
+    #           loc='upper left')
 
     plt.tight_layout()
 
@@ -303,7 +218,10 @@ def plot_residue_contacts(contacts, residue_id, output_prefix, frames=None):
 
 
 def plot_individual_contacts(contacts, residue_id, output_prefix, color_map, global_y_limits):
-    """Génère des graphiques individuels pour chaque contact"""
+    """Génère des graphiques individuels pour chaque contact avec mise en évidence d'un frame spécifique"""
+    # Frame à mettre en évidence (configurable facilement)
+    HIGHLIGHT_FRAME = 6000
+
     if contacts.empty:
         return
 
@@ -330,6 +248,7 @@ def plot_individual_contacts(contacts, residue_id, output_prefix, color_map, glo
         pair_contacts = pair_contacts.sort_values('Frame')
 
         plt.figure(figsize=(12, 6))
+        ax = plt.gca()
 
         # Tracer les points
         sns.scatterplot(
@@ -338,11 +257,12 @@ def plot_individual_contacts(contacts, residue_id, output_prefix, color_map, glo
             data=pair_contacts,
             color=color_map[pair],
             s=pair_contacts['Welltype'].map(size_map),
-            alpha=0.8
+            alpha=0.8,
+            ax=ax
         )
 
         # Connecter les points avec une ligne
-        plt.plot(
+        ax.plot(
             pair_contacts['Frame'],
             pair_contacts['FrstIndex'],
             color=color_map[pair],
@@ -351,25 +271,58 @@ def plot_individual_contacts(contacts, residue_id, output_prefix, color_map, glo
             linewidth=1.5
         )
 
-        # Utiliser les mêmes limites d'axe Y que le graphique global
-        plt.ylim(global_y_limits)
+        # Mettre en évidence le frame spécifié s'il existe
+        if HIGHLIGHT_FRAME in pair_contacts['Frame'].values:
+            highlight_data = pair_contacts[pair_contacts['Frame'] == HIGHLIGHT_FRAME].iloc[0]
+            frustration = highlight_data['FrstIndex']
 
-        # Inversion de l'axe Y et X
-        #plt.gca().invert_yaxis()
-        #plt.gca().invert_xaxis()
+            # Déterminer la couleur en fonction de la frustration
+            if frustration < -1:
+                highlight_color = 'red'  # Très frustré
+            elif frustration > 0.78:
+                highlight_color = 'green'  # Peu frustré
+            else:
+                highlight_color = 'gray'  # Neutre
+
+            # Mettre en évidence le point
+            ax.scatter(
+                x=HIGHLIGHT_FRAME,
+                y=frustration,
+                color=highlight_color,
+                s=size_map[highlight_data['Welltype']] * 1.5,  # 50% plus grand
+                alpha=1.0,
+                zorder=4,
+                edgecolor='black',
+                linewidth=1
+            )
+
+            # Ajouter une zone verticale de mise en évidence
+            ax.axvspan(
+                HIGHLIGHT_FRAME - 25,
+                HIGHLIGHT_FRAME + 25,
+                color=highlight_color,
+                alpha=0.3,
+                zorder=0
+            )
+
+        # Utiliser les mêmes limites d'axe Y que le graphique global
+        ax.set_ylim(global_y_limits)
+
+        # Inversion de l'axe Y
+        #ax.invert_yaxis()
 
         # Ajouter des lignes horizontales pointillées
-        plt.axhline(y=-1, color='red', linestyle='--', linewidth=1, alpha=0.7)
-        plt.axhline(y=0.78, color='green', linestyle='--', linewidth=1, alpha=0.7)
+        ax.axhline(y=-1, color='red', linestyle='--', linewidth=1, alpha=0.7)
+        ax.axhline(y=0.78, color='green', linestyle='--', linewidth=1, alpha=0.7)
 
         # Configuration du graphique
-        plt.title(f'Évolution du contact {pair}\npour le résidu {residue_id}')
-        plt.xlabel('Numéro de frame (inversé)')
-        plt.ylabel('Indice de frustration (inversé)')
-        plt.grid(True)
+        ax.set_title(f'Évolution du contact {pair}\npour le résidu {residue_id}')
+        ax.set_xlabel('Numéro de frame')
+        ax.set_ylabel('Indice de frustration (inversé)')
+        ax.grid(True)
 
         # Amélioration de l'affichage des ticks sur l'axe X
-        plt.xticks(np.arange(0, 4901, 500))
+        ax.set_xticks(np.arange(0, 4901, 500))
 
         plt.tight_layout()
 
@@ -381,39 +334,65 @@ def plot_individual_contacts(contacts, residue_id, output_prefix, color_map, glo
             dpi=300
         )
         plt.close()
-        
+
 def main():
     parser = argparse.ArgumentParser(description='Analyse des données de frustration des contacts.')
     parser.add_argument('protein', type=str, help='Nom de la protéine à analyser')
-    parser.add_argument('--isolate', action='store_true', help='Analyser les chaînes isolées')
     parser.add_argument('--residue', type=str, help='Résidu spécifique à analyser (format: Chain:AAResNum)')
     parser.add_argument('--frames', nargs='+', type=int, help='Frames spécifiques à analyser (ex: 0 10)')
-    parser.add_argument('--plot_all', action='store_true', help='Générer tous les graphiques disponibles')
+    parser.add_argument('--only-intra', action='store_true', help='Afficher seulement les contacts intra-chaîne')
+    parser.add_argument('--only-inter', action='store_true', help='Afficher seulement les contacts inter-chaînes')
+    parser.add_argument('--isolated', action='store_true', help='Whether the frustration was calculated by separating the chains')
+    parser.add_argument('--true_isolate', action='store_true', default=False,
+                        help='Similar to isolate but results are saved in True_isolate directory')
 
     args = parser.parse_args()
 
-    # Utilise les frames fournies ou celles par défaut
-    frames_to_plot = args.frames if args.frames else DEFAULT_FRAMES
+    # Vérification des arguments
+    if args.only_intra and args.only_inter:
+        print("Error: Vous ne pouvez pas utiliser --only-intra et --only-inter simultanément")
+        return
 
-    # Charge les données
-    contact_data = load_contact_data(args.protein, args.isolate)
+    # Déterminer le type de contact à afficher
+    contact_type = None
+    if args.only_intra:
+        contact_type = 'intra'
+    elif args.only_inter:
+        contact_type = 'inter'
+
+    # Charge les données selon le mode spécifié
+    contact_data = load_contact_data(args.protein, args.isolated, args.true_isolate)
+    print(contact_data)
     if contact_data is None:
         return
 
-    # Crée le répertoire de sortie
-    output_dir = os.path.join('../contact_analysis', args.protein)
-    os.makedirs(output_dir, exist_ok=True)
+     # Determine the subdirectory based on isolation mode
+    if args.true_isolate:
+        subdir = "True_isolated"
+    elif args.isolate:
+        subdir = "Isolated"
+    else:
+        subdir = "Not_isolated"
 
-    # Génère les graphiques de base
-    plot_contact_frustration(contact_data, os.path.join(output_dir, args.protein))
+
+    # Crée le répertoire de sortie approprié
+    output_dir = os.path.join('../contact_analysis', subdir, args.protein)
+    os.makedirs(output_dir, exist_ok=True)
 
     # Analyse un résidu spécifique si demandé
     if args.residue:
-        contacts, stats = analyze_residue_contacts(contact_data, args.residue)
+        # Filtrer les contacts selon le type demandé
+        filtered_contacts = filter_contacts(contact_data, args.residue, contact_type)
+
+        # Analyser les contacts filtrés
+        contacts, stats = analyze_residue_contacts(filtered_contacts, args.residue)
 
         if contacts is not None:
             print(f"\nAnalyse pour le résidu {args.residue}:")
+            print(f"Mode: {'Isolated' if args.isolated else 'Not isolated'}")
             print(f"Contacts totaux: {stats['total_contacts']}")
+            print(f"  - Intra-chaîne: {stats['intra_chain']}")
+            print(f"  - Inter-chaînes: {stats['inter_chain']}")
             print(f"Frustration moyenne: {stats['avg_frustration']:.3f}")
             print(f"Contacts très frustrés: {stats['highly_frustrated']}")
             print(f"Contacts peu frustrés: {stats['minimally_frustrated']}")
@@ -425,15 +404,16 @@ def main():
             contacts.to_csv(residue_file, sep='\t', index=False)
             print(f"\nContacts détaillés sauvegardés dans {residue_file}")
 
-            # Trace l'évolution sur toutes les frames
+            # Trace l'évolution
             y_limits, color_map = plot_residue_contacts(
                 contacts, args.residue,
                 os.path.join(output_dir, f"residue_{args.residue.replace(':', '_')}"),
-                frames=args.frames if args.frames else None  # None pour toutes les frames
+                frames=args.frames if args.frames else None
             )
-            print(f"Graphique d'évolution sauvegardé pour les frames: {args.frames if args.frames else 'tous'}")
-
+            print(f"Graphique d'évolution sauvegardé")
             # Si on a tracé toutes les frames, génère aussi les graphiques individuels
+            #y_limits = (np.float64(0.9734499999999999), np.float64(-2.05045))
+            #color_map = {'0:?187-0:Y189': (0.9677975592919913, 0.44127456009157356, 0.5358103155058701), '0:Y189-0:I191': (0.8836443049112893, 0.5240073524369634, 0.19569304285113343), '0:Y189-0:E193': (0.710130687316902, 0.6046852192663268, 0.19426060163712158), '0:Y189-0:?194': (0.5432776721247529, 0.6540981095185215, 0.19324494273892204), '0:Y189-0:R197': (0.19592059105779686, 0.6981620017487838, 0.3452219818913641), '0:T184-0:Y189': (0.2067117296964458, 0.6829103404254792, 0.5829988925822328), '0:E183-0:Y189': (0.21420912437215422, 0.6714963557258681, 0.6986206664203177), '0:P146-0:Y189': (0.22537170008202412, 0.6531400148480775, 0.841007805313343), '0:Y189-0:R192': (0.5596943802099308, 0.5764402169887779, 0.9583930713150347), '0:P150-0:Y189': (0.8578978803740231, 0.44058452715322166, 0.957819659566579), '0:R147-0:Y189': (0.9628653850704806, 0.4025928454059796, 0.7779310354076443)}
             if args.frames is None and y_limits is not None:
                 plot_individual_contacts(
                     contacts, args.residue,
@@ -442,46 +422,9 @@ def main():
                 )
                 print("Graphiques individuels des contacts sauvegardés dans le dossier 'individual_contacts'")
 
-    # Génère des graphiques supplémentaires si demandé
-    if args.plot_all:
-        print("\nGénération de graphiques supplémentaires...")
-        _generate_additional_plots(contact_data, os.path.join(output_dir, args.protein))
 
-
-def _generate_additional_plots(contact_data, output_prefix):
-    """Génère des graphiques supplémentaires"""
-    if isinstance(contact_data, dict):
-        for chain_id, df in contact_data.items():
-            _plot_contact_heatmap(df, f"{output_prefix}_chain_{chain_id}")
     else:
-        _plot_contact_heatmap(contact_data, output_prefix)
-
-
-def _plot_contact_heatmap(df, output_prefix):
-    """Heatmap des contacts à travers les frames"""
-    try:
-        # Crée une table pivot pour la heatmap
-        pivot_df = df.pivot_table(
-            index='ResID1',
-            columns='Frame',
-            values='FrstIndex',
-            aggfunc='mean'
-        )
-
-        plt.figure(figsize=(15, 10))
-        sns.heatmap(
-            pivot_df,
-            cmap='coolwarm',
-            center=0,
-            cbar_kws={'label': 'Indice de frustration'}
-        )
-        plt.title('Heatmap des frustrations des contacts')
-        plt.xlabel('Numéro de frame')
-        plt.ylabel('Résidu')
-        plt.savefig(f"{output_prefix}_heatmap.png")
-        plt.close()
-    except Exception as e:
-        print(f"Erreur lors de la génération de la heatmap: {e}")
+        print("Veuillez spécifier un résidu avec --residue pour l'analyse")
 
 
 if __name__ == "__main__":

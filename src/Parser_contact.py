@@ -11,6 +11,10 @@ def parse_arguments():
     parser.add_argument('dir', type=str, help='Directory containing the frustration data')
     parser.add_argument('--isolate', action='store_true', default=False,
                         help='Whether the frustration was calculated by separating the chains')
+    parser.add_argument('--true_isolate', action='store_true', default=False,
+                        help='Similar to isolate but results are saved in True_isolate directory')
+    parser.add_argument('--chains', nargs='+', default=None,
+                        help='List of chains to process (e.g. 0 5 l q v)')
 
     args = parser.parse_args()
 
@@ -18,26 +22,31 @@ def parse_arguments():
         print(f"Error: Directory {args.dir} does not exist")
         sys.exit(1)
 
-    return args.dir, args.isolate
+    return args.dir, args.isolate, args.true_isolate, args.chains
 
 
-def get_protein_name(dir_path, isolate):
+def get_protein_name(dir_path):
     """Extract protein name from directory structure"""
     for dirname in os.listdir(dir_path):
         if dirname.endswith('.done'):
             parts = dirname.split('_')
-            if isolate and len(parts) >= 3:
-                return parts[0]
-            elif not isolate and len(parts) >= 2:
-                return parts[0]
-
+            return parts[0]
     print("Error: Could not determine protein name")
     sys.exit(1)
 
 
-def save_contact_data(contact_data, protein_name, isolate_mode):
+def save_contact_data(contact_data, protein_name, isolate, true_isolate):
     """Save contact data to TSV files"""
-    output_dir = os.path.join('../contact_data', 'Isolated' if isolate_mode else 'Not_isolated', protein_name)
+
+    # Determine the subdirectory based on isolation mode
+    if true_isolate:
+        subdir = "True_isolated"
+    elif isolate:
+        subdir = "Isolated"
+    else:
+        subdir = "Not_isolated"
+
+    output_dir = os.path.join('../contact_dataframes',subdir , protein_name)
     os.makedirs(output_dir, exist_ok=True)
 
     if isinstance(contact_data, dict):
@@ -107,7 +116,7 @@ def _extract_frame_number(file_path, isolate_mode):
         return parts[-1]  # Frame number is last
 
 
-def process_contact_data(files, isolate_mode):
+def process_contact_data(files, isolate_mode, chains_to_process=None):
     """Process all contact files and create consolidated data"""
     all_data = defaultdict(list)
 
@@ -123,6 +132,10 @@ def process_contact_data(files, isolate_mode):
             # Convert chain columns to string
             df['ChainRes1'] = df['ChainRes1'].astype(str)
             df['ChainRes2'] = df['ChainRes2'].astype(str)
+
+            # Filter by selected chains if specified
+            if chains_to_process is not None:
+                df = df[df['ChainRes1'].isin(chains_to_process) | df['ChainRes2'].isin(chains_to_process)]
 
             # Create residue IDs (now using normalized residue numbers)
             df['ResID1'] = (
@@ -149,13 +162,16 @@ def process_contact_data(files, isolate_mode):
     # Combine all frames for each chain/pair
     combined = {}
     for key, dfs in all_data.items():
+        if not dfs:  # Skip empty dataframes
+            continue
         combined_df = pd.concat(dfs, ignore_index=True)
         combined_key = key[0] if isolate_mode and isinstance(key, tuple) else key
         combined[combined_key] = combined_df
 
     return combined if len(combined) > 1 else combined.popitem()[1]
 
-def _parse_isolated_contacts(dir_path):
+
+def _parse_isolated_contacts(dir_path, chains_to_process=None):
     """Parse contacts in isolate mode (Protein_Frame_Chain.done)"""
     chain_files = defaultdict(list)
 
@@ -164,6 +180,9 @@ def _parse_isolated_contacts(dir_path):
             parts = dirname.split('_')
             if len(parts) >= 3:
                 chain_name = parts[-1].split('.')[0]
+                # Skip chains not in our list if specified
+                if chains_to_process is not None and chain_name not in chains_to_process:
+                    continue
                 # Find the actual contact file (name may vary)
                 for f in os.listdir(os.path.join(dir_path, dirname, "FrustrationData")):
                     if f.endswith("configurational"):
@@ -175,28 +194,20 @@ def _parse_isolated_contacts(dir_path):
         sys.exit(1)
 
     print(f"Found {len(chain_files)} chains: {', '.join(chain_files.keys())}")
-    return {chain: process_contact_data(files, True) for chain, files in chain_files.items()}
+    return {chain: process_contact_data(files, True, chains_to_process) for chain, files in chain_files.items()}
 
 
-def _parse_non_isolated_contacts(dir_path):
+def _parse_non_isolated_contacts(dir_path, chains_to_process=None):
     """Parse contacts in non-isolate mode (Protein_Frame.done)"""
     contact_files = []
 
     for dirname in os.listdir(dir_path):
-        #print(dirname)
         if dirname.endswith('.done'):
-
             parts = dirname.split('_')
             if len(parts) >= 2:
-
                 # Find the actual contact file
-
-                #print( os.listdir(os.path.join(dir_path, dirname, "FrustrationData")))
-                #print( os.path.join(dir_path, dirname, "FrustrationData"))
                 for f in os.listdir(os.path.join(dir_path, dirname, "FrustrationData")):
-                    #print(f)
                     if f.endswith("configurational"):
-
                         contact_files.append(os.path.join(dir_path, dirname, "FrustrationData", f))
                         break
 
@@ -204,30 +215,35 @@ def _parse_non_isolated_contacts(dir_path):
         print("No valid contact files found in non-isolate mode")
         sys.exit(1)
 
-    return process_contact_data(contact_files, False)
+    return process_contact_data(contact_files, False, chains_to_process)
 
 
-def parse_contact_results(dir_path, isolate_mode):
+def parse_contact_results(dir_path, isolate, true_isolate, chains_to_process=None):
     """Main function to parse contact frustration results"""
-    if isolate_mode:
-        return _parse_isolated_contacts(dir_path)
+    if isolate:
+        return _parse_isolated_contacts(dir_path, chains_to_process)
     else:
-        return _parse_non_isolated_contacts(dir_path)
+        return _parse_non_isolated_contacts(dir_path, chains_to_process)
 
 
 def main():
-    dir_path, isolate_mode = parse_arguments()
-    protein_name = get_protein_name(dir_path, isolate_mode)
+    dir_path, isolate, true_isolate, chains = parse_arguments()
+    protein_name = get_protein_name(dir_path)
 
     print(f"\nProcessing contact frustration data for {protein_name}")
-    print(f"Isolate mode: {isolate_mode}\n")
+    print(f"Isolate mode: {isolate}")
+    print(f'True_isolate mode: {true_isolate}')
+    if chains:
+        print(f"Processing only chains: {', '.join(chains)}\n")
+    else:
+        print("Processing all chains\n")
 
-    contact_data = parse_contact_results(dir_path, isolate_mode)
-    save_contact_data(contact_data, protein_name, isolate_mode)
+    contact_data = parse_contact_results(dir_path, isolate, true_isolate, chains)
+    save_contact_data(contact_data, protein_name, isolate, true_isolate)
 
     # Display summary
     if isinstance(contact_data, dict):
-        print(f"\nFound {len(contact_data)} chain(s):")
+        print(f"\nFound {len(contact_data)} chain(s)/pair(s):")
         for key, df in contact_data.items():
             print(f"{key}: {len(df)} contacts from {df['Frame'].nunique()} frames")
     else:
