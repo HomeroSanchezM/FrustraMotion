@@ -1,11 +1,9 @@
 # FrustraMotion
 FrustraMotion is a tool for the study of local energetic frustration of the dynamics states of proteins.
 Is composed of 3 main scripts: 
--Frustration.py  
-
--Parser.py / Parser_contact.py  
-
--visualisation.py / visualisation_contact.py  
+- Frustration.py  
+- Parser.py / Parser_contact.py  
+- visualisation.py / visualisation_contact.py  
  
 ## Use of scrips
 
@@ -14,62 +12,48 @@ This script processes the directory containing frustration data and creates data
 
 #### Features:
 
-    Processes single residue frustration data files in .done directories obtain by Frustration.py or directly by using FrsutratometeR 
-
-    Handles three different modes:
-
-        Non-isolated mode (protein complex analyzed together)
-
-        Isolated mode (chains analyzed separately)
-
-        True isolated mode (single-chain protein)
-
-    Creates organized CSV outputs with frustration indices for each residue across frames
-
-    Automatically detects and handles multiple chains
-
+- Processes single residue frustration data files in .done directories obtain by Frustration.py or directly by using FrsutratometeR 
+- Handles three different modes:
+ - Non-isolated mode (protein complex analyzed together)
+ - Isolated mode (chains analyzed separately)
+ - True isolated mode (single-chain protein)
+- Creates organized CSV outputs with frustration indices for each residue across frames
+- Automatically detects and handles multiple chains
 
 #### Input File Requirements:
 
 For non_isolate and True_isolate mode:
-
-    Directory containing repertories with this structure: ProteinName_FrameNumber.done
-
-    Inside each .done directory: FrustrationData/ProteinName_FrameNumber.pdb_singleresidue files
+- Directory containing repertories with this structure: ProteinName_FrameNumber.done
+- Inside each .done directory: FrustrationData/ProteinName_FrameNumber.pdb_singleresidue files
 
 For isolated mode:
-
-    Directory structure: ProteinName_FrameNumber_ChainName.done
-
-    Inside each .done directory: FrustrationData/ProteinName_FrameNumber_ChainName.pdb_singleresidue files
+- Directory structure: ProteinName_FrameNumber_ChainName.done
+- Inside each .done directory: FrustrationData/ProteinName_FrameNumber_ChainName.pdb_singleresidue files
 
 #### Output:
 
-    Creates CSV files with columns: chain, residue, frame0, frame10, etc.
-    with the frame column having the single_residue frustration indices (FI).
-    Organizes output in subdirectories based on isolation mode:
-
-        single_residue_dataframes/Not_isolated/ for complex analysis
-
-        single_residue_dataframes/Isolated/ for chain-separated analysis
-
-        single_residue_dataframes/True_isolated/ for single-chain proteins
+- Creates CSV files with columns: chain, residue, frame0, frame10, etc.
+with the frame column having the single_residue frustration indices (FI).
+- Organizes output in subdirectories based on isolation mode:
+ - `single_residue_dataframes/Not_isolated/` for complex analysis
+ - `single_residue_dataframes/Isolated/` for chain-separated analysis
+ - `single_residue_dataframes/True_isolated/` for single-chain proteins
 
 #### Usage: 
 
-Parse single_residue frustration data for protein complex, (directories named `ProteinName_FrameNumber.done`):
+1. Parse single_residue frustration data for protein complex, (directories named `ProteinName_FrameNumber.done`):
 ```bash
 python3 Parser.py path/to/directory/
 ```
 Generates output in `single_residue_dataframes/Not_isolated/ProteinName/` with one CSV per chain.
 
-Parse the frustration data for a protein complex were the chain have been frustrated separetely, and directories have as code name `ProteinName_FrameNumber_ChainName.done`
+2. Parse the frustration data for a protein complex were the chain have been frustrated separetely, and directories have as code name `ProteinName_FrameNumber_ChainName.done`
 ```bash
 python3 Parser.py path/to/directory/ --isolate
 ```
 Generates output in `single_residue_dataframes/Isolated/ProteinName/` with one CSV per chain.
 
-Parse the frustration data for a mono-chain protein, were directories have as code name `ProteinName_FrameNumber.done`
+3. Parse the frustration data for a mono-chain protein, were directories have as code name `ProteinName_FrameNumber.done`
 ```bash
 python3 Parser.py path/to/directory/ --true_isolate
 ```
@@ -104,7 +88,7 @@ This script visualizes sigle_residue frustration data from the generated datafra
 ```bash
 python3 Visualisation.py path/to/dataframes/ --residue 188 --chain 0
 ```
-    Output: Dot plot showing frustration values for residue 188 in chain '0' across all frames.
+Output: Dot plot showing frustration values for residue 188 in chain '0' across all frames.
 
 
 2. **Multi-Chain Residue Analysis**:
@@ -114,7 +98,7 @@ python3 Visualisation.py path/to/dataframes/ --residue 188 --chain 0
 ```bash
 python3 Visualisation.py path/to/dataframes/ --residue 188
 ```
-   Output: Grid of plots showing frustration for residue 188 in each available chain.
+Output: Grid of plots showing frustration for residue 188 in each available chain.
 
 
 3. **Frame-Specific Boxplot**:
@@ -124,7 +108,7 @@ python3 Visualisation.py path/to/dataframes/ --residue 188
 ```bash
 python3 Visualisation.py path/to/dataframes/ --boxplot --variability --frame 100
 ```
-    Output: Boxplot showing frustration distribution for each residue at frame 100.
+Output: Boxplot showing frustration distribution for each residue at frame 100.
 
 4. **Dynamic Boxplot**:
    Show frustration distribution per residue across all frames for a specific chain.
@@ -133,7 +117,7 @@ python3 Visualisation.py path/to/dataframes/ --boxplot --variability --frame 100
 ```bash
 python3 Visualisation.py path/to/dataframes/ --boxplot --dynamic --chain A
 ```
-    Output: Boxplot showing frustration distribution for each residue in chain 'A' across all frames.
+Output: Boxplot showing frustration distribution for each residue in chain 'A' across all frames.
  
 5. **VMD Visualization Script Generation**:
    Generate TCL script for visualizing frustration in VMD.
@@ -142,10 +126,10 @@ python3 Visualisation.py path/to/dataframes/ --boxplot --dynamic --chain A
 ```bash
    python3 Visualisation.py path/to/dataframes/ --generate-tcl --pdb-dir path/to/pdbs/ --frame-step 10
 ```
-    Output: TCL script that can be run in VMD to visualize frustration patterns.
-    THIS have 2 optional settings
-    - --frame-step: Controls spacing between frames in VMD animation (default: 10)
-    - --max-frames: Limits number of frames included in VMD script
+Output: TCL script that can be run in VMD to visualize frustration patterns.
+THIS have 2 optional settings
+- --frame-step: Controls spacing between frames in VMD animation (default: 10)
+- --max-frames: Limits number of frames included in VMD script
 
 
 ### Parser_contact.py 
