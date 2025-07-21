@@ -106,18 +106,18 @@ Output: Grid of plots showing frustration for residue 188 in each available chai
 
    Example usage:
 ```bash
-python3 Visualisation.py path/to/dataframes/ --boxplot --variability --frame 100
+python3 Visualisation.py path/to/dataframes/ --boxplot --variability --frame 100 --residue 188
 ```
-Output: Boxplot showing frustration distribution for each residue at frame 100.
+Output: Boxplot showing frustration distribution for each residue at frame 100, the boxplot of the residue 188 is highlighted in red.
 
 4. **Dynamic Boxplot**:
    Show frustration distribution per residue across all frames for a specific chain.
 
    Example usage:
 ```bash
-python3 Visualisation.py path/to/dataframes/ --boxplot --dynamic --chain A
+python3 Visualisation.py path/to/dataframes/ --boxplot --dynamic --chain A --residue 188
 ```
-Output: Boxplot showing frustration distribution for each residue in chain 'A' across all frames.
+Output: Boxplot showing frustration distribution for each residue in chain 'A' across all frames, the boxplot of the residue 188 is highlighted in red.
  
 5. **VMD Visualization Script Generation**:
    Generate TCL script for visualizing frustration in VMD.
