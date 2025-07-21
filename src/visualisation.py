@@ -425,7 +425,7 @@ def plot_all_chains_frustration(frustration_data, residue_num):
     plt.show()
 
 
-def plot_frustration_boxplots(frustration_data, frame_num, output_dir, chain_id , dataframe_dir):
+def plot_frustration_boxplots(frustration_data, frame_num, output_dir, chain_id , dataframe_dir, high_residue):
     """
     Generate boxplots of frustration values per residue across all chains for a specific frame.
     Box color depends on the distribution:
@@ -474,6 +474,15 @@ def plot_frustration_boxplots(frustration_data, frame_num, output_dir, chain_id 
         fliersize=2,
         color='skyblue'
     )
+
+    # Highlight residue
+    highlight_suffixes = [str(high_residue)]
+
+    residue_list = combined_df['residue'].unique()
+    for i, res in enumerate(residue_list):
+        if any(res[1:] == suffix for suffix in highlight_suffixes):
+            high_res = res
+            ax.axvspan(i - 0.5, i + 0.5, color='lightcoral', alpha=0.3, zorder=0)
 
     # Color each box based on values
     residue_list = combined_df['residue'].unique()
@@ -715,7 +724,7 @@ def main():
             if frame_num is None:
                 print("\nError: --frame parameter must be specified with --boxplot and --variability")
                 sys.exit(1)
-            plot_frustration_boxplots(frustration_data, frame_num, "plots/boxplots", chain_id, dataframes_dir)
+            plot_frustration_boxplots(frustration_data, frame_num, "plots/boxplots", chain_id, dataframes_dir, residue)
         if dynamic:
             if chain_id is None:
                 print("\nError: --chain parameter must be specified with --boxplot and --dynamic")
