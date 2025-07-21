@@ -88,7 +88,8 @@ This script visualizes sigle_residue frustration data from the generated datafra
 ```bash
 python3 Visualisation.py path/to/dataframes/ --residue 188 --chain 0
 ```
-Output: Dot plot showing frustration values for residue 188 in chain '0' across all frames.
+![Output: Dot plot showing frustration values for residue 188 in chain '0' across all frames.](plots/visualisation_plot_1.png)
+
 
 
 2. **Multi-Chain Residue Analysis**:
