@@ -88,6 +88,8 @@ This script visualizes sigle_residue frustration data from the generated datafra
 ```bash
 python3 Visualisation.py path/to/dataframes/ --residue 188 --chain 0
 ```
+Output: Dot plot showing frustration values for residue 188 in chain '0' accross all frames.
+
 ![Output: Dot plot showing frustration values for residue 188 in chain '0' across all frames.](plots/visualisation_plot_1.png)
 
 
@@ -101,6 +103,7 @@ python3 Visualisation.py path/to/dataframes/ --residue 188
 ```
 Output: Grid of plots showing frustration for residue 188 in each available chain.
 
+![Output: Grid of plots showing frustration for residue 188 in each available chain.](plots/visualisation_plot_2.png)
 
 3. **Frame-Specific Boxplot**:
    Show single_residue frustration distribution per residue across all chains at a specific frame.
