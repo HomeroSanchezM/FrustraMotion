@@ -36,6 +36,7 @@ def parse_arguments():
     parser.add_argument('--dynamic', action='store_true', default=False,
                         help='Generate dynamic boxplot of frustration values across all frames for a chain')
 
+
     args = parser.parse_args()
 
     # Verify that the directory exists
@@ -234,7 +235,7 @@ def generate_tcl_script(classified_residues, pdb_dir, frame_step, max_frames=Non
     print("Run in VMD with: vmd -e frustration_visualization.tcl")
 
 
-def plot_frustration_vs_frames(frust_frames_data, frames):
+def plot_frustration_vs_frames(frust_frames_data, frames, residue, chain_id, dataframe_dir):
     """
     Plot frustration values across frames with specified coloring.
 
@@ -242,6 +243,9 @@ def plot_frustration_vs_frames(frust_frames_data, frames):
         frust_frames_data: List of frustration values (as numpy.float64 or float)
         frames: List of frame names (e.g., ['frame0', 'frame10', ...])
     """
+    #extract Protein_name and type
+    protein_name = dataframe_dir.split('/')[-2]
+    Type = dataframe_dir.split('/')[-3]
     # Extract numerical values from frame names
     frame_numbers = [int(f[5:]) for f in frames]
 
@@ -278,7 +282,7 @@ def plot_frustration_vs_frames(frust_frames_data, frames):
     plt.gca().invert_yaxis()  # Invert y-axis as requested
     plt.xlabel('Frame Number')
     plt.ylabel('Frustration Value')
-    plt.title('Frustration Value Across Frames')
+    plt.title(f'Frustration Value of residue {residue} Across Frames ({protein_name}, chain {chain_id}, {Type})')
     plt.grid(True, linestyle='--', alpha=0.6)
 
     # Add legend
@@ -421,7 +425,7 @@ def plot_all_chains_frustration(frustration_data, residue_num):
     plt.show()
 
 
-def plot_frustration_boxplots(frustration_data, frame_num, output_dir=None):
+def plot_frustration_boxplots(frustration_data, frame_num, output_dir, chain_id , dataframe_dir):
     """
     Generate boxplots of frustration values per residue across all chains for a specific frame.
     Box color depends on the distribution:
@@ -436,9 +440,11 @@ def plot_frustration_boxplots(frustration_data, frame_num, output_dir=None):
     - frame_num: Frame number to analyze
     - output_dir: Directory to save the plot (if None, shows plot)
     """
-    import seaborn as sns
-    import matplotlib.patches as mpatches
 
+
+    # extract Protein_name and type
+    protein_name = dataframe_dir.split('/')[-2]
+    Type = dataframe_dir.split('/')[-3]
     # Prepare data
     frame_col = f'frame{frame_num}'
     all_data = []
@@ -510,7 +516,7 @@ def plot_frustration_boxplots(frustration_data, frame_num, output_dir=None):
         plt.axvline(x=x, color='gray', linestyle=':', linewidth=0.5, alpha=0.3)
 
     # Title and labels
-    plt.title(f'Frustration Distribution per Residue (Frame {frame_num})', fontsize=12)
+    plt.title(f'Frustration Distribution per Residue (Frame {frame_num}, all chains, {protein_name}, {Type})', fontsize=12)
     plt.xlabel('Residue', labelpad=10)
     plt.ylabel('Frustration Index', labelpad=10)
     plt.yticks(fontsize=10)
@@ -534,7 +540,7 @@ def plot_frustration_boxplots(frustration_data, frame_num, output_dir=None):
     #else:
     #    plt.show()
 
-def plot_dynamic_frustration_boxplots(frustration_data, chain_id=None, output_dir=None):
+def plot_dynamic_frustration_boxplots(frustration_data, output_dir, chain_id, dataframe_dir, high_residue):
     """
     Generate boxplots of frustration values per residue across all frames for a specific chain.
     Box color depends on the distribution:
@@ -549,9 +555,11 @@ def plot_dynamic_frustration_boxplots(frustration_data, chain_id=None, output_di
     - chain_id: Specific chain to analyze (if None, uses first available chain)
     - output_dir: Directory to save the plot (if None, shows plot)
     """
-    import seaborn as sns
-    import matplotlib.patches as mpatches
 
+
+    # extract Protein_name and type
+    protein_name = dataframe_dir.split('/')[-2]
+    Type = dataframe_dir.split('/')[-3]
     # Select the chain to analyze
     if isinstance(frustration_data, dict):
         if chain_id is None:
@@ -589,10 +597,12 @@ def plot_dynamic_frustration_boxplots(frustration_data, chain_id=None, output_di
     )
 
     # Highlight residue
-    highlight_suffixes = ['85']
+    highlight_suffixes = [str(high_residue)]
+
     residue_list = plot_df['residue'].unique()
     for i, res in enumerate(residue_list):
         if any(res[1:]==suffix for suffix in highlight_suffixes):
+            high_res = res
             ax.axvspan(i - 0.5, i + 0.5, color='lightcoral', alpha=0.3, zorder=0)
 
     # Color each box based on values
@@ -635,7 +645,7 @@ def plot_dynamic_frustration_boxplots(frustration_data, chain_id=None, output_di
         plt.axvline(x=x, color='gray', linestyle=':', linewidth=0.5, alpha=0.3)
 
     # Title and labels
-    plt.title(f'Dynamic Frustration Distribution per Residue (Chain {chain_id})', fontsize=12)
+    plt.title(f'Dynamic Frustration Distribution per Residue, highlight residue {high_res} (All Frames, Chain {chain_id}, {protein_name}, {Type})', fontsize=12)
     plt.xlabel('Residue', labelpad=10)
     plt.ylabel('Frustration Index', labelpad=10)
     plt.yticks(fontsize=10)
@@ -705,12 +715,12 @@ def main():
             if frame_num is None:
                 print("\nError: --frame parameter must be specified with --boxplot and --variability")
                 sys.exit(1)
-            plot_frustration_boxplots(frustration_data, frame_num, "plots/boxplots")
+            plot_frustration_boxplots(frustration_data, frame_num, "plots/boxplots", chain_id, dataframes_dir)
         if dynamic:
             if chain_id is None:
                 print("\nError: --chain parameter must be specified with --boxplot and --dynamic")
                 sys.exit(1)
-            plot_dynamic_frustration_boxplots(frustration_data, chain_id, "plots/dynamic_boxplots")
+            plot_dynamic_frustration_boxplots(frustration_data, "plots/dynamic_boxplots", chain_id, dataframes_dir, residue )
 
     # Generate TCL script if requested
     if generate_tcl:
@@ -743,7 +753,7 @@ def main():
             frust_frames_data = df_chain.iloc[residue - 1].values[2:]  # Skip chain and residue columns
             frames = df_chain.columns.tolist()[2:]  # Skip chain and residue columns
 
-            plot_frustration_vs_frames(frust_frames_data, frames)
+            plot_frustration_vs_frames(frust_frames_data, frames, residue, chain_id, dataframes_dir )
 
 if __name__ == "__main__":
     main()
