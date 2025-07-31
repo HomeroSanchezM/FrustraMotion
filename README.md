@@ -4,6 +4,20 @@ Is composed of 3 main scripts:
 - Frustration.py  
 - Parser.py / Parser_contact.py  
 - visualisation.py / visualisation_contact.py  
+
+## Requirements
+
+To use this code, install the following Python packages via `pip`:  
+- `pandas` (for data manipulation)  
+- `numpy` (for numerical operations)  
+- `matplotlib` (for plotting and visualization)  
+- `seaborn` (for advanced statistical visualizations)  
+- `argparse` (for command-line argument parsing)  
+
+Install them using:  
+```bash
+pip install pandas numpy matplotlib seaborn argparse
+```
  
 ## Use of scrips
 
